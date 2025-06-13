@@ -12,12 +12,7 @@ function App() {
 
   return (
     <>
-      {/* Example layout (you can toggle components as needed): */}
-      {/* <div className='flex h-screen'>
-        <Logout />
-        <Left />
-        <Right />
-      </div> */}
+     
       
       {/* Uncomment one of these depending on the state */}
       {/* <Login /> */}
