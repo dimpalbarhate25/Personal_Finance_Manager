@@ -1,5 +1,7 @@
+// models/user.model.js
 import mongoose from "mongoose";
-const userSchema = mongoose.Schema(
+
+const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true },
@@ -11,5 +13,7 @@ const userSchema = mongoose.Schema(
   }
 );
 
-const User = mongoose.model("User", userSchema);
+// ✅ Prevent model overwrite if reloaded
+const User = mongoose.models.User || mongoose.model("User", userSchema);
+
 export default User;

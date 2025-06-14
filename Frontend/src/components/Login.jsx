@@ -1,118 +1,52 @@
-import React from 'react'
-import axios from "axios";
-import { useForm } from "react-hook-form";
+// Login.jsx
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({ email: "", password: "" });
 
-    const {
-        register,
-        handleSubmit,
-      
-        formState: { errors },
-      } = useForm();
-    const onSubmit = (data) => {
-   const userinfo = {
- 
-  email: data.email,
-  password: data.password,
-   // ← fix here
-};
+  const handleChange = (e) =>
+    setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  axios.post("http://localhost:5002/user/login", userinfo)
-  .then((response)=>{
-    console.log(response.data);
-    if(response.data){
-      alert("logged in  succesfully. ")
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const response = await fetch("http://localhost:5000/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData),
+    });
+
+    const result = await response.json();
+    alert(result.message);
+    if (response.ok) {
+      navigate("/dashboard");
     }
+  };
 
-    localStorage.setItem("messenger",JSON.stringify( response.data));
-  })
-  .catch((error)=>{
-    if(error.response){
-      alert("Error"+ error.response.data.message)
-    }
-  });
-  }
   return (
-   <>
-    <div>
-        <div className="flex h-screen items-center justify-center">
-          <form
-          onSubmit={handleSubmit(onSubmit)}
-           
-            className="border border-black px-6 py-3 rounded-md space-y-3 w-30"
-          >
-            <h1 className="text-2xl items-center text-blue-600 font-bold">
-              {" "}
-              FINANCE MANAGER
-            </h1>
-            <h1 className="text-2xl items-center">
-              {" "}
-              Login with your {" "}
-              <span className="text-blue-600 font-semibold"> Account</span>{" "}
-            </h1>
-            <h2>its free and always will be</h2>
-
-            
-           
-            {/*email*/}
-            <label className="input input-bordered flex items-center gap-4">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-                className="h-4 w-4 opacity-70"
-              >
-                <path d="M2.5 3A1.5 1.5 0 0 0 1 4.5v.793c.026.009.051.02.076.032L7.674 8.51c.206.1.446.1.652 0l6.598-3.185A.755.755 0 0 1 15 5.293V4.5A1.5 1.5 0 0 0 13.5 3h-11Z" />
-                <path d="M15 6.954 8.978 9.86a2.25 2.25 0 0 1-1.956 0L1 6.954V11.5A1.5 1.5 0 0 0 2.5 13h11a1.5 1.5 0 0 0 1.5-1.5V6.954Z" />
-              </svg>
-              <input type="text" className="grow" placeholder="Email" {...register("email", { required: true })}
-              />
-              {errors.email && <span className="text-red-500" >This field is required</span>} 
-            </label>
-
-            {/*password */}
-            <label className="input input-bordered flex items-center gap-2">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-                className="h-4 w-4 opacity-70"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M14 6a4 4 0 0 1-4.899 3.899l-1.955 1.955a.5.5 0 0 1-.353.146H5v1.5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5v-2.293a.5.5 0 0 1 .146-.353l3.955-3.955A4 4 0 1 1 14 6Zm-4-2a.75.75 0 0 0 0 1.5.5.5 0 0 1 .5.5.75.75 0 0 0 1.5 0 2 2 0 0 0-2-2Z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <input type="password" className="grow" placeholder="password" {...register("password", { required: true })}
-              />
-              {errors.password && <span className="text-red-500">This field is required</span>} 
-            </label>
-
-            
-
-            {/*text amd button */}
-
-            <div className=" flex justify-between ">
-              <input
-                type="submit"
-                value="Login"
-                className="text-white text-center cursor-pointer bg-blue-600 w-full justify-center rounded-lg py-3"
-              ></input>
-              <br></br>
-            </div>
-            <p>
-              {" "}
-              Dont't have any account ?{" "}
-              <span className="text-blue-500 underline cursor-pointer ml-1 ">
-                {" "}
-                {"  "}Signup{" "}
-              </span>{" "}
-            </p>
-          </form>
-        </div>
-      </div>
-   </> 
-  )
+    <form onSubmit={handleSubmit}>
+      <h2>Login</h2>
+      <input
+        type="email"
+        name="email"
+        placeholder="Email"
+        value={formData.email}
+        onChange={handleChange}
+        required
+      />
+      <br />
+      <input
+        type="password"
+        name="password"
+        placeholder="Password"
+        value={formData.password}
+        onChange={handleChange}
+        required
+      />
+      <br />
+      <button type="submit">Login</button>
+    </form>
+  );
 }
