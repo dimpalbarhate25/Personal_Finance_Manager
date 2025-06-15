@@ -30,7 +30,9 @@ export default function Signup() {
     };
 
     try {
-      const response = await axios.post("http://localhost:5002/user/signup", userinfo);
+const response = await axios.post("http://localhost:5002/user/signup", userinfo, {
+  withCredentials: true,
+});
       if (response.data) {
         alert("Signed up successfully! You can now log in.");
         localStorage.setItem("messenger", JSON.stringify(response.data));

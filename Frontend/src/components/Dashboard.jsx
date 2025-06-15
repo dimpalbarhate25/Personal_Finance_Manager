@@ -302,7 +302,7 @@ const FinancialDashboard = () => {
   );
 
   return (
-<div className="flex w-screen h-screen bg-gray-100 overflow-hidden">
+    <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
       <div className="w-64 bg-gray-900 text-white p-6">
         <div className="flex items-center space-x-3 mb-8">
