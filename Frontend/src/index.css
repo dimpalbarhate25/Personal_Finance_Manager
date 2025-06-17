@@ -11,3 +11,7 @@
 .flex-gayatri::-webkit-scrollbar{
   display: none;
 }
+.recharts-pie-sector:hover {
+  transform: scale(1.05);
+  transition: transform 0.3s ease;
+}
