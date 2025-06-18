@@ -47,9 +47,9 @@ const response = await axios.post("http://localhost:5002/user/signup", userinfo,
   return (
     <div className="flex h-screen items-center justify-center">
       <form onSubmit={handleSubmit(onSubmit)} className="border border-black px-6 py-4 rounded-md space-y-3 w-96 bg-white">
-        <h1 className="text-2xl font-bold text-blue-600 text-center">MESSENGER</h1>
+        <h1 className="text-2xl font-bold text-fuchsia-800 text-center">MESSENGER</h1>
         <h2 className="text-lg font-semibold text-center">
-          Create a new <span className="text-blue-600">Account</span>
+          Create a new <span className="text-fuchsia-700">Account</span>
         </h2>
         <p className="text-sm text-gray-500 text-center">It's free and always will be</p>
 
@@ -103,12 +103,12 @@ const response = await axios.post("http://localhost:5002/user/signup", userinfo,
         <input
           type="submit"
           value="Signup"
-          className="bg-blue-600 text-white w-full py-2 rounded-md cursor-pointer hover:bg-blue-700"
+          className="bg-fuchsia-800 text-white w-full py-2 rounded-md cursor-pointer hover:bg-fuchsia-700"
         />
 
         <p className="text-sm text-center">
           Already have an account?
-          <Link to="/login" className="text-blue-500 underline ml-1">
+          <Link to="/login" className="text-fuchsia-700 underline ml-1">
             Login
           </Link>
         </p>

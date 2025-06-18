@@ -6,12 +6,15 @@ import Login from "./components/Login";
 import TransactionPage from "./components/TransactionPage";
 import { useAuth } from "./context/AuthProvider";
 import { ShoppingCart, Utensils, Home, Leaf } from "lucide-react";
+import AddCashPage from "./components/AddCashPage";
+
+
 
 function App() {
   const [authUser] = useAuth();
 
   const [transactions, setTransactions] = useState([]);
-  const [balance, setBalance] = useState(3325.90);
+  const [balance, setBalance] = useState(0.00);
   const [categories, setCategories] = useState([
     { name: "Shopping", amount: 0, color: "bg-cyan-500", icon: ShoppingCart },
     { name: "Food & Drinks", amount: 0, color: "bg-amber-500", icon: Utensils },
@@ -44,7 +47,10 @@ function App() {
   };
 
   return (
+    
     <Routes>
+      <Route path="/add-cash" element={<AddCashPage />} />
+
       <Route
         path="/"
         element={

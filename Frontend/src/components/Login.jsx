@@ -43,9 +43,9 @@ export default function Login() {
         onSubmit={handleSubmit(onSubmit)}
         className="border border-black px-6 py-4 rounded-md space-y-3 w-96 bg-white"
       >
-        <h1 className="text-2xl text-center text-blue-600 font-bold">MESSENGER</h1>
+        <h1 className="text-2xl text-center text-fuchsia-800 font-bold">MESSENGER</h1>
         <h2 className="text-lg text-center">
-          Login to your <span className="text-blue-600 font-semibold">Account</span>
+          Login to your <span className="text-fuchsia-600 font-semibold">Account</span>
         </h2>
         <p className="text-sm text-center text-gray-500">It's free and always will be</p>
 
@@ -86,13 +86,13 @@ export default function Login() {
         <input
           type="submit"
           value="Login"
-          className="bg-blue-600 text-white w-full py-2 rounded-md cursor-pointer hover:bg-blue-700"
+          className="bg-fuchsia-800 text-white w-full py-2 rounded-md cursor-pointer hover:bg-fuchsia-700"
         />
 
         {/* Redirect Link */}
         <p className="text-sm text-center">
           Don't have an account?{" "}
-          <Link to="/signup" className="text-blue-500 underline">Signup</Link>
+          <Link to="/signup" className="text-fuchsia-600 underline">Signup</Link>
         </p>
       </form>
     </div>

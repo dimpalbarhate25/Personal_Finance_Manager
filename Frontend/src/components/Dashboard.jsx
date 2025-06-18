@@ -1,5 +1,9 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
+import { AccountsPieChart, Tips } from './DashboardWidgets';
+import TransactionPage from "./TransactionPage"; // Adjust path as needed
+
+const [transactions, setTransactions] = useState([]);
 
 import {
   DollarSign,
@@ -17,6 +21,8 @@ import {
   Building2,
   Trash2,
   Edit3,
+  IndianRupee,
+  ReceiptText,
 } from "lucide-react";
 
 import {
@@ -35,102 +41,120 @@ import {
   Line,
 } from "recharts";
 
-
-
-
-
-
-
 const FinancialDashboard = ({
   transactions,
   addTransaction,
   deleteTransaction,
-
-   balance,
+  balance,
   categories,
   setCategories,
-  updateBalanceAndCategories
+  updateBalanceAndCategories,
 }) => {
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [newCategoryName, setNewCategoryName] = useState("");
-const [newCategoryColor, setNewCategoryColor] = useState("bg-indigo-500");
-const [newCategoryIcon, setNewCategoryIcon] = useState("ShoppingCart"); // use string to store icon name
-const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [newCategoryColor, setNewCategoryColor] = useState("bg-indigo-500");
+  const [newCategoryIcon, setNewCategoryIcon] = useState("ShoppingCart"); // use string to store icon name
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  //For deleting the category
+  const handleDeleteCategory = (indexToDelete) => {
+    const updatedCategories = categories.filter(
+      (_, index) => index !== indexToDelete
+    );
+    setCategories(updatedCategories);
+  };
+
+  // Inside your component
+
+  const chartColors = [
+    "#10b981",
+    "#f97316",
+    "#3b82f6",
+    "#ec4899",
+    "#6366f1",
+    "#f59e0b",
+    "#8b5cf6",
+    "#ef4444",
+    "#14b8a6",
+    "#84cc16",
+    "#eab308",
+    "#0ea5e9",
+  ];
+const COLORS = ["#4ade80", "#f472b6", "#60a5fa", "#facc15", "#c084fc"];
 
 
 
-const chartColors = [
-  "#10b981", "#f97316", "#3b82f6", "#ec4899",
-  "#6366f1", "#f59e0b", "#8b5cf6", "#ef4444",
-  "#14b8a6", "#84cc16", "#eab308", "#0ea5e9"
-]; 
+  // ✅ Declare these first
+  const categorySums = {};
+  const purposeSums = [];
 
-// ✅ Declare these first
-const categorySums = {};
-const purposeSums = [];
+  transactions.forEach((tx) => {
+    if (tx.type !== "expense") return;
+    const category = tx.category;
+    const purpose = tx.purpose;
+    const amount = Math.abs(tx.sum);
 
-transactions.forEach(tx => {
-  if (tx.type !== "expense") return;
-  const category = tx.category;
-  const purpose = tx.purpose;
-  const amount = Math.abs(tx.sum);
+    if (!categorySums[category]) categorySums[category] = 0;
+    categorySums[category] += amount;
 
-  if (!categorySums[category]) categorySums[category] = 0;
-  categorySums[category] += amount;
-
-  purposeSums.push({
-    name: purpose,
-    category,
-    value: amount,
+    purposeSums.push({
+      name: purpose,
+      category,
+      value: amount,
+    });
   });
-});
 
-const categoryData = Object.entries(categorySums).map(([name, value], index) => ({
-  name,
-  value,
-  color: chartColors[index % chartColors.length],
-}));
+  const categoryData = Object.entries(categorySums).map(
+    ([name, value], index) => ({
+      name,
+      value,
+      color: chartColors[index % chartColors.length],
+    })
+  );
 
-  
-const colorOptions = [
-  "bg-cyan-500", "bg-amber-500", "bg-red-500", "bg-gray-800", "bg-indigo-500", "bg-green-500"
-];
+  const colorOptions = [
+    "bg-pink-500",
+    "bg-sky-500",
+    "bg-purple-500",
+    "bg-yellow-400",
+    "bg-green-500",
+    "bg-indigo-500",
+    "bg-gray-500",
+  ];
 
-const iconOptions = {
-  ShoppingCart,
-  Utensils,
-  Home,
-  Leaf,
-  CreditCard,
-  Wallet,
-  Building2
-};
+  const iconOptions = {
+    ShoppingCart,
+    Utensils,
+    Home,
+    Leaf,
+    CreditCard,
+    Wallet,
+    Building2,
+  };
 
   const [accounts, setAccounts] = useState([
     {
       id: 1,
       name: "Checking Account",
-      balance: 2500.0,
+      balance: 0.0,
       type: "checking",
       icon: CreditCard,
     },
     {
       id: 2,
       name: "Savings Account",
-      balance: 825.9,
+      balance: 0.0,
       type: "savings",
       icon: Wallet,
     },
     {
       id: 3,
       name: "Investment Account",
-      balance: 1250.0,
+      balance: 0.0,
       type: "investment",
       icon: Building2,
     },
   ]);
-
-
 
   const [newExpense, setNewExpense] = useState({
     purpose: "",
@@ -152,13 +176,12 @@ const iconOptions = {
   });
 
   const [settings, setSettings] = useState({
-    currency: "EUR",
+    currency: "INR",
     budgetLimit: 1000,
     notifications: true,
     darkMode: false,
   });
 
- 
   const computedCategories = [
     "Shopping",
     "Food & Drinks",
@@ -176,7 +199,6 @@ const iconOptions = {
       Others: "#1f2937",
     };
 
-    
     const iconMap = {
       Shopping: ShoppingCart,
       "Food & Drinks": Utensils,
@@ -192,28 +214,37 @@ const iconOptions = {
     };
   });
 
-
+  //category handling and adding
 
   const handleAddCategory = () => {
-   
-  if (!newCategoryName.trim()) return alert("Please enter a category name");
+    if (!newCategoryName.trim()) {
+      alert("Please enter a category name");
+      return;
+    }
 
-  if (categories.some(cat => cat.name.toLowerCase() === newCategoryName.toLowerCase())) {
-    alert("Category already exists");
-    return;
-  }
-    
-  const newCategory = {
-    name: newCategoryName,
-    amount: 0,
-    color: "bg-indigo-500", // Or randomly pick
-    icon: Leaf, // Optional default
+    if (
+      categories.some(
+        (cat) => cat.name.toLowerCase() === newCategoryName.toLowerCase()
+      )
+    ) {
+      alert("Category already exists");
+      return;
+    }
+
+    const iconComponent = iconOptions[newCategoryIcon]; // 👈 convert string to actual component
+
+    const newCategory = {
+      name: newCategoryName,
+      amount: 0,
+      color: newCategoryColor,
+      icon: iconComponent,
+    };
+
+    setCategories((prev) => [...prev, newCategory]);
+    setNewCategoryName("");
+    setNewCategoryColor("bg-indigo-500");
+    setNewCategoryIcon("ShoppingCart");
   };
-
-  setCategories(prev => [...prev, newCategory]);
-  setNewCategoryName("");
-};
-
 
   // Handle adding expense
   const handleAddExpense = () => {
@@ -242,8 +273,7 @@ const iconOptions = {
     addTransaction(transaction); // ✅ Adds to shared state in App.jsx
 
     // Update balance
-        updateBalanceAndCategories(transaction);
-
+    updateBalanceAndCategories(transaction);
 
     // Reset form
     setNewExpense({
@@ -280,7 +310,7 @@ const iconOptions = {
     };
 
     // Add transaction
-     addTransaction(transaction);
+    addTransaction(transaction);
 
     // Update balance
     updateBalanceAndCategories(transaction);
@@ -343,7 +373,7 @@ const iconOptions = {
         type: "income",
       };
       addTransaction(transaction);
-  updateBalanceAndCategories(transaction);
+      updateBalanceAndCategories(transaction);
     }
 
     // Reset form
@@ -357,42 +387,41 @@ const iconOptions = {
   };
 
   // Handle deleting account
- const handleDeleteAccount = (accountId) => {
-  if (accounts.length <= 1) {
-    alert("You must have at least one account");
-    return;
-  }
+  const handleDeleteAccount = (accountId) => {
+    if (accounts.length <= 1) {
+      alert("You must have at least one account");
+      return;
+    }
 
-  const account = accounts.find((acc) => acc.id === accountId);
-  if (!account) return;
+    const account = accounts.find((acc) => acc.id === accountId);
+    if (!account) return;
 
-  if (account.balance > 0) {
-    const confirm = window.confirm(
-      `This account has a balance of ${account.balance.toFixed(
-        2
-      )}. Are you sure you want to delete it?`
-    );
-    if (!confirm) return;
+    if (account.balance > 0) {
+      const confirm = window.confirm(
+        `This account has a balance of ${account.balance.toFixed(
+          2
+        )}. Are you sure you want to delete it?`
+      );
+      if (!confirm) return;
 
-    // Create reverse transaction to deduct balance
-    const transaction = {
-      id: Date.now(),
-      purpose: `Deleted account: ${account.name}`,
-      category: "Income", // still using 'income' so it subtracts
-      sum: -account.balance,
-      date: new Date().toISOString().split("T")[0],
-      type: "income",
-    };
+      // Create reverse transaction to deduct balance
+      const transaction = {
+        id: Date.now(),
+        purpose: `Deleted account: ${account.name}`,
+        category: "Income", // still using 'income' so it subtracts
+        sum: -account.balance,
+        date: new Date().toISOString().split("T")[0],
+        type: "income",
+      };
 
-    // Update global balance
-    updateBalanceAndCategories(transaction);
-    addTransaction(transaction);
-  }
+      // Update global balance
+      updateBalanceAndCategories(transaction);
+      addTransaction(transaction);
+    }
 
-  setAccounts((prev) => prev.filter((acc) => acc.id !== accountId));
-  alert("Account deleted successfully!");
-};
-
+    setAccounts((prev) => prev.filter((acc) => acc.id !== accountId));
+    alert("Account deleted successfully!");
+  };
 
   // Handle updating settings
   const handleUpdateSettings = () => {
@@ -431,35 +460,45 @@ const iconOptions = {
     }));
 
   const months = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-];
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
 
-const monthlyData = months.map((month, index) => {
-  const income = transactions
-    .filter(tx => {
-      const txDate = new Date(tx.date);
-      return (
-        tx.type === "income" &&
-        txDate.getFullYear() === selectedYear &&
-        txDate.getMonth() === index
-      );
-    })
-    .reduce((sum, tx) => sum + tx.sum, 0);
+  const monthlyData = months.map((month, index) => {
+    const income = transactions
+      .filter((tx) => {
+        const txDate = new Date(tx.date);
+        return (
+          tx.type === "income" &&
+          txDate.getFullYear() === selectedYear &&
+          txDate.getMonth() === index
+        );
+      })
+      .reduce((sum, tx) => sum + tx.sum, 0);
 
-  const expenses = transactions
-    .filter(tx => {
-      const txDate = new Date(tx.date);
-      return (
-        tx.type === "expense" &&
-        txDate.getFullYear() === selectedYear &&
-        txDate.getMonth() === index
-      );
-    })
-    .reduce((sum, tx) => sum + Math.abs(tx.sum), 0);
+    const expenses = transactions
+      .filter((tx) => {
+        const txDate = new Date(tx.date);
+        return (
+          tx.type === "expense" &&
+          txDate.getFullYear() === selectedYear &&
+          txDate.getMonth() === index
+        );
+      })
+      .reduce((sum, tx) => sum + Math.abs(tx.sum), 0);
 
-  return { month, income, expenses };
-});
+    return { month, income, expenses };
+  });
 
   const getCategoryColor = (category) => {
     const colors = {
@@ -474,34 +513,36 @@ const monthlyData = months.map((month, index) => {
 
   const MenuItem = ({ icon: Icon, label, isActive, onClick }) => (
     <div
-      className={`flex items-center space-x-3 px-4 py-3 rounded-lg cursor-pointer transition-colors ${
+      className={`group relative flex items-center space-x-3 px-4 py-3 rounded-lg cursor-pointer transition-colors duration-300 ${
         isActive
-          ? "bg-gray-700 text-white"
-          : "text-gray-400 hover:text-white hover:bg-gray-700"
+          ? "bg-fuchsia-200 text-black"
+          : "text-black hover:text-white hover:bg-fuchsia-700"
       }`}
       onClick={onClick}
     >
       <Icon size={20} />
-      <span>{label}</span>
+      <span className="relative after:content-[''] after:absolute after:left-0 after:bottom-0 after:h-[2px] after:w-0 after:bg-white after:transition-all after:duration-500 group-hover:after:w-full">
+        {label}
+      </span>
     </div>
   );
 
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
-      <div className="w-64 bg-gray-900 text-white p-6">
+      <div className="w-64 bg-white text-black p-6">
         <div className="flex items-center space-x-3 mb-8">
-          <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
-            <span className="text-xl font-bold">H</span>
+          <div className="w-12 h-12 bg-fuchsia-800 rounded-lg flex items-center justify-center">
+            <span className="text-xl text-white font-bold">H</span>
           </div>
           <div>
-            <h2 className="text-xl font-bold">FinGuard</h2>
-            <p className="text-sm text-gray-400">Hello, user </p>
-            <p className="text-xs text-gray-500">Administrator • Online</p>
+            <h2 className="text-xl font-bold">FinanceFlow</h2>
+            <p className="text-sm text-gray-800 ">Hello, user </p>
+            <p className="text-sm text-gray-900">Administrator • Online</p>
           </div>
         </div>
 
-        <nav className="space-y-2">
+        <nav className="space-y-2 ">
           <MenuItem
             icon={BarChart3}
             label="Dashboard"
@@ -521,6 +562,18 @@ const monthlyData = months.map((month, index) => {
             onClick={() => setActiveTab("Accounts")}
           />
           <MenuItem
+            icon={ReceiptText}
+            label="Transactions"
+            isActive={activeTab === "Transactions"}
+            onClick={() => setActiveTab("Transactions")}
+          />
+          <MenuItem
+            icon={Wallet}
+            label="Budget"
+            isActive={activeTab === "Budget"}
+            onClick={() => setActiveTab("Budget")}
+          />
+          <MenuItem
             icon={Settings}
             label="Settings"
             isActive={activeTab === "Settings"}
@@ -533,180 +586,222 @@ const monthlyData = months.map((month, index) => {
       <div className="flex-1 overflow-auto">
         {activeTab === "Dashboard" && (
           <div className="p-6">
-            {/* Balance and Category Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-              {/* Balance Card */}
-              <div className="lg:col-span-2 bg-green-500 text-white p-6 rounded-lg">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm opacity-90">Balance</span>
-                  <DollarSign size={24} />
+            {/* White Container */}
+            <div className="bg-white p-4 md:p-5 rounded-xl shadow-md max-h-[90vh] overflow-auto">
+              {/* Balance and Category Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                {/* Balance Card */}
+                <div className="lg:col-span-2 bg-pink-600 text-white p-4 rounded-lg transition-transform transform hover:scale-105 hover:shadow-lg">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-xl font-bold opacity-90">
+                      Balance
+                    </span>
+                    <IndianRupee size={24} />
+                  </div>
+                  <div className="text-3xl font-bold">
+                    {settings.currency} {(0).toFixed(2)}
+                  </div>
                 </div>
-                <div className="text-3xl font-bold">
-                  {settings.currency} {balance.toFixed(2)}
-                </div>
-              </div>
 
-              {/* Category Cards */}
-              {categories.map((category, index) => {
-                const Icon = category.icon;
-                return (
-                  <div
-                    key={index}
-                    className={`${category.color} text-white p-6 rounded-lg`}
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-sm opacity-90">
-                        {category.name}
-                      </span>
-                      <Icon size={24} />
+                {/* Category Cards */}
+                {categories.map((category, index) => {
+                  const Icon = category.icon;
+                  return (
+                    <div
+                      key={index}
+                      className={`${category.color} text-white p-4 rounded-lg transition-transform transform hover:scale-105 hover:shadow-lg relative`}
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <span className="text-xl opacity-90">
+                          {category.name}
+                        </span>
+                        <Icon size={24} />
+                      </div>
+                      <div className="text-xl font-bold mb-6">
+                        {settings.currency} {category.amount.toFixed(2)}
+                      </div>
+
+                      {/* Delete Button (bottom-right corner) */}
+                      <button
+                        className="absolute bottom-3 right-3 text-white hover:text-red-500"
+                        onClick={() => handleDeleteCategory(index)}
+                        title="Delete"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M9 3a1 1 0 011-1h4a1 1 0 011 1h5a1 1 0 110 2h-1.07l-.9 13.38A2 2 0 0115.04 20H8.96a2 2 0 01-1.99-1.62L6.07 5H5a1 1 0 110-2h4zm2 5a1 1 0 10-2 0v8a1 1 0 102 0V8zm4 0a1 1 0 10-2 0v8a1 1 0 102 0V8z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
                     </div>
-                    <div className="text-xl font-bold">
-                      {settings.currency} {category.amount.toFixed(2)}
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              {/* Add Category*/}
+              <div className="  flex mb-7 pt-10 flex-col lg:flex-row gap-8 px-6">
+                <div className="bg-white   p-6 rounded-lg shadow w-full lg:w-1/2">
+                  <div className="space-y-5">
+                    <h3 className="text-lg font-semibold ">Add New Category</h3>
+
+                    <input
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      placeholder="Category name"
+                      className="w-full px-3 py-2 border rounded "
+                    />
+
+                    <div className="space-y-5 !mb-10">
+                      <label className="block text-base font-medium mb-1 ">
+                        Choose Color
+                      </label>
+                      <div className="flex flex-wrap gap-2 ">
+                        {colorOptions.map((color) => (
+                          <button
+                            key={color}
+                            onClick={() => setNewCategoryColor(color)}
+                            className={`w-6 h-6 rounded-full border-2  ${color} ${
+                              newCategoryColor === color
+                                ? "ring-2 ring-black"
+                                : ""
+                            }`}
+                          />
+                        ))}
+                      </div>
                     </div>
                   </div>
-                );
-              })}
 
+                  <div className="space-y-5">
+                    <label className="block text-base font-medium mb-1 -mt-5">
+                      Choose Icon
+                    </label>
+                    <div className="grid grid-cols-4 gap-4 ">
+                      {Object.keys(iconOptions).map((key) => {
+                        const Icon = iconOptions[key];
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => setNewCategoryIcon(key)}
+                            className={`p-2 rounded border ${
+                              newCategoryIcon === key
+                                ? "border-fuchsia-800"
+                                : "border-gray-300"
+                            }`}
+                          >
+                            <Icon size={21} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
 
+                  <button
+                    onClick={handleAddCategory}
+                    className="bg-fuchsia-800 text-white px-4 py-2 rounded w-full mt-10  mr-4"
+                  >
+                    Add Category
+                  </button>
+                </div>
 
-            </div>
+                {/* Charts Section Expense Distribution*/}
+                <div className>
+                  <div className="![width:105%] ![height:500px] bg-white rounded-lg shadow p-1">
+                    <h2 className="text-2xl font-semibold mb-4 text-center mt-4">
+                      Expense Distribution
+                    </h2>
+                    <ResponsiveContainer width="100%" height={350}>
+                      <PieChart>
+                        {/* Inner pie - Categories */}
+                        <Pie
+                          data={categoryData}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={30}
+                          outerRadius={70}
+                          label
+                        >
+                          {categoryData.map((entry, index) => (
+                            <Cell key={`cat-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
 
-          <div  >  
-<div className="  flex mb-5 flex-col lg:flex-row gap-8 px-6">
-   <div className="bg-white   p-6 rounded-lg shadow w-full lg:w-1/2">
-  <h3 className="text-lg font-semibold">Add New Category</h3>
+                        {/* Outer pie - Purposes */}
+                        <Pie
+                          data={purposeSums}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={75}
+                          outerRadius={100}
+                          label={({ name, value }) => `${name} (${value})`}
+                        >
+                          {purposeSums.map((entry, index) => {
+                            const categoryIndex = categoryData.findIndex(
+                              (cat) => cat.name === entry.category
+                            );
+                            const color =
+                              chartColors[categoryIndex % chartColors.length];
+                            return (
+                              <Cell
+                                key={`purpose-${index}`}
+                                fill={color}
+                                stroke="#fff"
+                              />
+                            );
+                          })}
+                        </Pie>
 
-  <input
-    value={newCategoryName}
-    onChange={(e) => setNewCategoryName(e.target.value)}
-    placeholder="Category name"
-    className="w-full px-3 py-2 border rounded"
-  />
-
-  <div>
-    <label className="block text-sm font-medium mb-1">Choose Color</label>
-    <div className="flex flex-wrap gap-2">
-      {colorOptions.map(color => (
-        <button
-          key={color}
-          onClick={() => setNewCategoryColor(color)}
-          className={`w-6 h-6 rounded-full border-2 ${color} ${newCategoryColor === color ? 'ring-2 ring-black' : ''}`}
-        />
-      ))}
-    </div>
-  </div>
-
-  <div>
-    <label className="block text-sm font-medium mb-1">Choose Icon</label>
-    <div className="grid grid-cols-4 gap-3">
-      {Object.keys(iconOptions).map((key) => {
-        const Icon = iconOptions[key];
-        return (
-          <button
-            key={key}
-            onClick={() => setNewCategoryIcon(key)}
-            className={`p-2 rounded border ${newCategoryIcon === key ? "border-blue-500" : "border-gray-300"}`}
-          >
-            <Icon size={20} />
-          </button>
-        );
-      })}
-    </div>
-  </div>
-
-  <button
-    onClick={handleAddCategory}
-    className="bg-blue-600 text-white px-4 py-2 rounded w-full mt-10  mr-4"
-  >
-    Add Category
-  </button>
-</div>
-
-
-
-            {/* Charts Section */}
-            <div className>
-              
-<div className="bg-white rounded-lg shadow p-1 w-full">
-                <h2 className="text-2xl font-semibold mb-4">Expense Distribution</h2>
-               <ResponsiveContainer width="100%" height={350}>
-  <PieChart>
-    {/* Inner pie - Categories */}
-    <Pie
-      data={categoryData}
-      dataKey="value"
-      nameKey="name"
-      cx="50%"
-      cy="50%"
-      innerRadius={30}
-      outerRadius={70}
-      label
-    >
-      {categoryData.map((entry, index) => (
-        <Cell key={`cat-${index}`} fill={entry.color} />
-      ))}
-    </Pie>
-
-    {/* Outer pie - Purposes */}
-    <Pie
-      data={purposeSums}
-      dataKey="value"
-      nameKey="name"
-      cx="50%"
-      cy="50%"
-      innerRadius={75}
-      outerRadius={100}
-      label={({ name, value }) => `${name} (${value})`}
-    >
-      {purposeSums.map((entry, index) => {
-        const categoryIndex = categoryData.findIndex(cat => cat.name === entry.category);
-        const color = chartColors[categoryIndex % chartColors.length];
-        return <Cell key={`purpose-${index}`} fill={color} stroke="#fff" />;
-      })}
-    </Pie>
-
-    <Tooltip />
-  </PieChart>
-</ResponsiveContainer>
-</div>
-
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
               </div>
             </div>
-</div>
             {/* Bar Chart */}
             <div className="bg-white p-6 rounded-lg shadow mb-5">
               <h3 className="text-lg font-semibold mb-4">Monthly Overview</h3>
               <div className="mb-4">
-  <label className="mr-2 font-medium">Select Year:</label>
-  <select
-    value={selectedYear}
-    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-    className="border px-2 py-1 rounded"
-  >
-    {/* You can predefine or generate years dynamically */}
-    <option value={2024}>2024</option>
-    <option value={2025}>2025</option>
-    <option value={2026}>2026</option>
-    <option value={2027}>2026</option>
-    <option value={2028}>2026</option>
-    <option value={2029}>2026</option>
-
-
-  </select>
-</div>
-            <div border-bg="20px" className="mb-2" >
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="income" fill="#10b981" name="Income" />
-                  <Bar dataKey="expenses" fill="#ef4444" name="Expenses" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+                <label className="mr-2 font-medium">Select Year:</label>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                  className="border px-2 py-1 rounded"
+                >
+                  {/* You can predefine or generate years dynamically */}
+                  <option value={2024}>2023</option>
+                  <option value={2025}>2024</option>
+                  <option value={2026}>2025</option>
+                  <option value={2027}>2026</option>
+                  <option value={2028}>2027</option>
+                  <option value={2029}>2028</option>
+                </select>
+              </div>
+              <div border-bg="20px" className="mb-2">
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={monthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="income" fill="#10b981" name="Income" />
+                    <Bar dataKey="expenses" fill="#ef4444" name="Expenses" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
 
             {/* Transactions and Add Expense */}
@@ -717,7 +812,7 @@ const monthlyData = months.map((month, index) => {
                   <h3 className="text-lg font-semibold">Recent Transactions</h3>
                   <Link
                     to="/transactions"
-                    className="text-blue-500 text-sm underline hover:text-blue-700"
+                    className="text-fuchsia-800 text-sm underline hover:text-fuchsia-700 font-bold"
                   >
                     View All →
                   </Link>
@@ -799,7 +894,7 @@ const monthlyData = months.map((month, index) => {
 
               {/* Add Expenditure */}
               <div className="bg-white rounded-lg shadow">
-                <div className="p-6 border-b bg-red-500 text-white rounded-t-lg">
+                <div className="p-6 border-b bg-fuchsia-800 text-white rounded-t-lg">
                   <h3 className="text-lg font-semibold">Add Expenditure</h3>
                 </div>
                 <div className="p-6 space-y-4">
@@ -816,7 +911,7 @@ const monthlyData = months.map((month, index) => {
                           purpose: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
                       placeholder="Enter purpose"
                     />
                   </div>
@@ -830,7 +925,7 @@ const monthlyData = months.map((month, index) => {
                       onChange={(e) =>
                         setNewExpense({ ...newExpense, sum: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
                       placeholder="Enter amount"
                     />
                   </div>
@@ -844,7 +939,7 @@ const monthlyData = months.map((month, index) => {
                       onChange={(e) =>
                         setNewExpense({ ...newExpense, date: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
                     />
                   </div>
                   <div>
@@ -861,7 +956,7 @@ const monthlyData = months.map((month, index) => {
                           }
                           className={`p-2 rounded-lg border text-sm ${
                             newExpense.category === cat.name
-                              ? "border-red-500 bg-red-50 text-red-700"
+                              ? "border-fuchsia-800 bg-red-50 text-fuchsia-700"
                               : "border-gray-300 hover:border-gray-400"
                           }`}
                         >
@@ -873,7 +968,7 @@ const monthlyData = months.map((month, index) => {
                   </div>
                   <button
                     onClick={handleAddExpense}
-                    className="w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-colors"
+                    className="w-full bg-fuchsia-800 text-white py-2 px-4 rounded-lg hover:bg-fuchsia-700 transition-colors"
                   >
                     Submit
                   </button>
@@ -881,7 +976,11 @@ const monthlyData = months.map((month, index) => {
               </div>
             </div>
 
-            {/* Progress Bars Section */}
+          {activeTab === "Transactions" && (
+  <TransactionPage transactions={transactions} />
+)}
+
+          {/* Progress Bars Section */}
             <div className="mt-8 bg-white rounded-lg shadow p-6">
               <h3 className="text-lg font-semibold mb-6">Budget Progress</h3>
               <div className="space-y-4">
@@ -906,7 +1005,7 @@ const monthlyData = months.map((month, index) => {
                         <div
                           className={`h-2 rounded-full transition-all duration-300 ${
                             percentage > 80
-                              ? "bg-red-500"
+                              ? "bg-fuchsia-400"
                               : percentage > 60
                               ? "bg-yellow-500"
                               : "bg-green-500"
@@ -940,7 +1039,7 @@ const monthlyData = months.map((month, index) => {
                     onChange={(e) =>
                       setNewCash({ ...newCash, amount: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
                     placeholder="Enter amount"
                   />
                 </div>
@@ -953,7 +1052,7 @@ const monthlyData = months.map((month, index) => {
                     onChange={(e) =>
                       setNewCash({ ...newCash, account: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
                   >
                     {accounts.map((account) => (
                       <option key={account.id} value={account.name}>
@@ -978,7 +1077,7 @@ const monthlyData = months.map((month, index) => {
                 </div>
                 <button
                   onClick={handleAddCash}
-                  className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors"
+                  className="w-full bg-fuchsia-800 text-white py-2 px-4 rounded-lg hover:bg-fuchsia-700 transition-colors"
                 >
                   Add Cash
                 </button>
@@ -1032,7 +1131,23 @@ const monthlyData = months.map((month, index) => {
             </div>
 
             {/* Add New Account */}
-            <div className="bg-white rounded-lg shadow p-6 max-w-md">
+            <div className="flex flex-col xl:flex-row gap-6">
+  {/* LEFT SIDE - Existing dashboard stuff */}
+  <div className="w-full xl:w-2/3 space-y-6">
+    {/* Keep all your current dashboard cards, budget progress, transactions here */}
+  </div>
+
+  {/* RIGHT SIDE - Add new content */}
+  <div className="w-full xl:w-1/3 space-y-6">
+    <AccountsPieChart accounts={accounts} />
+    <Tips />
+  </div>
+</div>
+
+
+
+
+<div className="bg-white rounded-lg shadow p-8 w-[800px] h-[420px] absolute top-80 left-[340px]">
               <h3 className="text-lg font-semibold mb-4">Add New Account</h3>
               <div className="space-y-4">
                 <div>
@@ -1045,7 +1160,7 @@ const monthlyData = months.map((month, index) => {
                     onChange={(e) =>
                       setNewAccount({ ...newAccount, name: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
                     placeholder="Enter account name"
                   />
                 </div>
@@ -1058,7 +1173,7 @@ const monthlyData = months.map((month, index) => {
                     onChange={(e) =>
                       setNewAccount({ ...newAccount, type: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
                   >
                     <option value="checking">Checking</option>
                     <option value="savings">Savings</option>
@@ -1078,13 +1193,13 @@ const monthlyData = months.map((month, index) => {
                         initialBalance: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
                     placeholder="Enter initial balance"
                   />
                 </div>
                 <button
                   onClick={handleAddAccount}
-                  className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors"
+                  className="w-full bg-fuchsia-800 text-white py-2 px-4 rounded-lg hover:bg-fuchsia-700 transition-colors"
                 >
                   Add Account
                 </button>
@@ -1107,7 +1222,7 @@ const monthlyData = months.map((month, index) => {
                     onChange={(e) =>
                       setSettings({ ...settings, currency: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
                   >
                     <option value="EUR">EUR (€)</option>
                     <option value="USD">USD ($)</option>
@@ -1129,7 +1244,7 @@ const monthlyData = months.map((month, index) => {
                         budgetLimit: parseFloat(e.target.value),
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
                     placeholder="Enter budget limit"
                   />
                 </div>
@@ -1145,7 +1260,7 @@ const monthlyData = months.map((month, index) => {
                           notifications: e.target.checked,
                         })
                       }
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="rounded border-gray-300 text-fuchsia-800 focus:ring-fuchsia-800"
                     />
                     <span className="text-sm font-medium text-gray-700">
                       Enable Notifications
@@ -1161,7 +1276,7 @@ const monthlyData = months.map((month, index) => {
                       onChange={(e) =>
                         setSettings({ ...settings, darkMode: e.target.checked })
                       }
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="rounded border-gray-300 text-fuchsia-800 focus:ring-fuchsia-800"
                     />
                     <span className="text-sm font-medium text-gray-700">
                       Dark Mode
@@ -1171,7 +1286,7 @@ const monthlyData = months.map((month, index) => {
 
                 <button
                   onClick={handleUpdateSettings}
-                  className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors"
+                  className="w-full bg-fuchsia-800 text-white py-2 px-4 rounded-lg hover:bg-fuchsia-700 transition-colors"
                 >
                   Update Settings
                 </button>
