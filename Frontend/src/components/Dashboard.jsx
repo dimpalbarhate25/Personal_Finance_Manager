@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { AccountsPieChart, Tips } from './DashboardWidgets';
+import { AccountsPieChart, Tips } from "./DashboardWidgets";
+import BudgetPage from "./BudgetPage"; 
 import TransactionPage from "./TransactionPage"; // Adjust path as needed
-
-const [transactions, setTransactions] = useState([]);
+import { useNavigate } from "react-router-dom";
 
 import {
   DollarSign,
@@ -49,6 +49,8 @@ const FinancialDashboard = ({
   categories,
   setCategories,
   updateBalanceAndCategories,
+  budget,            // ✅ receive it here
+  setBudget  
 }) => {
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -80,9 +82,8 @@ const FinancialDashboard = ({
     "#eab308",
     "#0ea5e9",
   ];
-const COLORS = ["#4ade80", "#f472b6", "#60a5fa", "#facc15", "#c084fc"];
-
-
+  const COLORS = ["#4ade80", "#f472b6", "#60a5fa", "#facc15", "#c084fc"];
+  const navigate = useNavigate();
 
   // ✅ Declare these first
   const categorySums = {};
@@ -338,6 +339,7 @@ const COLORS = ["#4ade80", "#f472b6", "#60a5fa", "#facc15", "#c084fc"];
   const handleAddAccount = () => {
     if (!newAccount.name || !newAccount.initialBalance) {
       alert("Please fill in all fields");
+      
       return;
     }
 
@@ -346,7 +348,7 @@ const COLORS = ["#4ade80", "#f472b6", "#60a5fa", "#facc15", "#c084fc"];
       alert("Please enter a valid initial balance");
       return;
     }
-
+ 
     const account = {
       id: Date.now(),
       name: newAccount.name,
@@ -500,6 +502,13 @@ const COLORS = ["#4ade80", "#f472b6", "#60a5fa", "#facc15", "#c084fc"];
     return { month, income, expenses };
   });
 
+  const thisMonthIncome = transactions
+  .filter(tx => tx.type === "income" && tx.date.startsWith(new Date().toISOString().slice(0, 7)))
+  .reduce((sum, tx) => sum + tx.sum, 0);
+
+const incomeTarget = 50000; // or from settings
+const percentage = (thisMonthIncome / incomeTarget) * 100;
+ 
   const getCategoryColor = (category) => {
     const colors = {
       Income: "bg-green-500",
@@ -567,6 +576,7 @@ const COLORS = ["#4ade80", "#f472b6", "#60a5fa", "#facc15", "#c084fc"];
             isActive={activeTab === "Transactions"}
             onClick={() => setActiveTab("Transactions")}
           />
+
           <MenuItem
             icon={Wallet}
             label="Budget"
@@ -599,7 +609,7 @@ const COLORS = ["#4ade80", "#f472b6", "#60a5fa", "#facc15", "#c084fc"];
                     <IndianRupee size={24} />
                   </div>
                   <div className="text-3xl font-bold">
-                    {settings.currency} {(0).toFixed(2)}
+                    {settings.currency}  {balance.toFixed(2)}
                   </div>
                 </div>
 
@@ -976,11 +986,11 @@ const COLORS = ["#4ade80", "#f472b6", "#60a5fa", "#facc15", "#c084fc"];
               </div>
             </div>
 
-          {activeTab === "Transactions" && (
-  <TransactionPage transactions={transactions} />
-)}
+            {activeTab === "Transactions" && (
+              <TransactionPage transactions={transactions} />
+            )}
 
-          {/* Progress Bars Section */}
+            {/* Progress Bars Section */}
             <div className="mt-8 bg-white rounded-lg shadow p-6">
               <h3 className="text-lg font-semibold mb-6">Budget Progress</h3>
               <div className="space-y-4">
@@ -1023,68 +1033,144 @@ const COLORS = ["#4ade80", "#f472b6", "#60a5fa", "#facc15", "#c084fc"];
             </div>
           </div>
         )}
-
-        {activeTab === "AddCash" && (
-          <div className="p-6">
-            <h2 className="text-2xl font-bold mb-6">Add Cash</h2>
-            <div className="bg-white rounded-lg shadow p-6 max-w-md">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Amount
-                  </label>
-                  <input
-                    type="number"
-                    value={newCash.amount}
-                    onChange={(e) =>
-                      setNewCash({ ...newCash, amount: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
-                    placeholder="Enter amount"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Account
-                  </label>
-                  <select
-                    value={newCash.account}
-                    onChange={(e) =>
-                      setNewCash({ ...newCash, account: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
-                  >
-                    {accounts.map((account) => (
-                      <option key={account.id} value={account.name}>
-                        {account.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={newCash.description}
-                    onChange={(e) =>
-                      setNewCash({ ...newCash, description: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter description"
-                  />
-                </div>
-                <button
-                  onClick={handleAddCash}
-                  className="w-full bg-fuchsia-800 text-white py-2 px-4 rounded-lg hover:bg-fuchsia-700 transition-colors"
-                >
-                  Add Cash
-                </button>
-              </div>
-            </div>
-          </div>
+        {activeTab === "Transactions" && (
+          <TransactionPage
+            transactions={transactions}
+            addTransaction={addTransaction}
+            deleteTransaction={deleteTransaction}
+            categories={categories}
+            setCategories={setCategories}
+            updateBalanceAndCategories={updateBalanceAndCategories}
+          />
         )}
+        {activeTab === "Budget" && (
+    <BudgetPage
+      transactions={transactions}
+      categories={categories}
+      budget={budget}
+      setBudget={setBudget}
+      settings={settings} 
+    />
+  )}
+        {activeTab === "AddCash" && (
+  <div className="p-6">
+    <div className="flex flex-col lg:flex-row gap-8">
+      {/* LEFT: Add Cash Form */}
+      <div className="w-full lg:w-1/2">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-2xl font-bold mb-6">Add Cash</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Amount
+              </label>
+              <input
+                type="number"
+                value={newCash.amount}
+                onChange={(e) =>
+                  setNewCash({ ...newCash, amount: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
+                placeholder="Enter amount"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Account
+              </label>
+              <select
+                value={newCash.account}
+                onChange={(e) =>
+                  setNewCash({ ...newCash, account: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
+              >
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.name}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Description (Optional)
+              </label>
+              <input
+                type="text"
+                value={newCash.description}
+                onChange={(e) =>
+                  setNewCash({ ...newCash, description: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter description"
+              />
+            </div>
+
+            <button
+              onClick={handleAddCash}
+              className="w-full bg-fuchsia-800 text-white py-2 px-4 rounded-lg hover:bg-fuchsia-700 transition-colors"
+            >
+              Add Cash
+            </button>
+          </div>
+
+          <div className="mt-6 text-lg font-medium text-gray-800">
+  Total Cash Added in {new Date().toLocaleString('default', { month: 'long' })}: ₹{thisMonthIncome.toFixed(2)}
+</div>
+
+        </div>
+      </div>
+
+      {/* RIGHT: Recent Cash Additions */}
+      <div className="w-full lg:w-1/2">
+        <div className="bg-white rounded-lg shadow p-6 h-full">
+          <h3 className="text-xl font-semibold mb-4">Recent Cash Additions</h3>
+          <ul className="space-y-2">
+            {transactions
+              .filter((tx) => tx.type === "income")
+              .slice(-5)
+              .reverse()
+              .map((tx) => (
+                <li key={tx.id} className="bg-gray-50 rounded shadow p-3">
+                  <div className="flex justify-between">
+                    <span>{tx.purpose}</span>
+                    <span className="text-green-600 font-medium">
+                      +₹{tx.sum.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-500">{tx.date}</div>
+                </li>
+              ))}
+          </ul>
+        </div>
+      </div>
+
+      
+    </div>
+
+    <div className="mt-4">
+  <p className="mb-1 text-sm font-medium text-gray-600">
+    Monthly Income Goal: ₹{incomeTarget}
+  </p>
+  <div className="w-full bg-gray-200 rounded-full h-3">
+    <div
+      className="bg-green-500 h-3 rounded-full transition-all duration-300"
+      style={{ width: `${Math.min(percentage, 100)}%` }}
+    ></div>
+  </div>
+  <p className="text-xs text-gray-500 mt-1">{percentage.toFixed(1)}% reached</p>
+</div>
+
+    <div className="mt-6 bg-blue-50 border-l-4 border-blue-400 p-4 rounded-md">
+  <h4 className="text-md font-semibold text-blue-700 mb-2">Did you receive your monthly salary?</h4>
+  <p className="text-sm text-blue-800">Log it as a recurring income to track your inflow patterns.</p>
+</div>
+
+  </div>
+)}
 
         {activeTab === "Accounts" && (
           <div className="p-6">
@@ -1131,81 +1217,81 @@ const COLORS = ["#4ade80", "#f472b6", "#60a5fa", "#facc15", "#c084fc"];
             </div>
 
             {/* Add New Account */}
-            <div className="flex flex-col xl:flex-row gap-6">
-  {/* LEFT SIDE - Existing dashboard stuff */}
-  <div className="w-full xl:w-2/3 space-y-6">
-    {/* Keep all your current dashboard cards, budget progress, transactions here */}
-  </div>
+            
+              {/* LEFT SIDE - Existing dashboard stuff */}
+              <div className="w-full xl space-y-6">
+                {/* Keep all your current dashboard cards, budget progress, transactions here */}
+              </div>
 
-  {/* RIGHT SIDE - Add new content */}
-  <div className="w-full xl:w-1/3 space-y-6">
-    <AccountsPieChart accounts={accounts} />
-    <Tips />
+              {/* RIGHT SIDE - Add new content */}
+              <div className="w-full xl space-y-6">
+  <AccountsPieChart accounts={accounts} />
+  <Tips />
+
+  {/* ✅ Add New Account Form */}
+  
+  <div className="w-300 bg-white rounded-lg shadow p-6">
+    <h3 className="text-lg font-semibold mb-4">Add New Account</h3>
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Account Name
+        </label>
+        <input
+          type="text"
+          value={newAccount.name}
+          onChange={(e) =>
+            setNewAccount({ ...newAccount, name: e.target.value })
+          }
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
+          placeholder="Enter account name"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Account Type
+        </label>
+        <select
+          value={newAccount.type}
+          onChange={(e) =>
+            setNewAccount({ ...newAccount, type: e.target.value })
+          }
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
+        >
+          <option value="checking">Checking</option>
+          <option value="savings">Savings</option>
+          <option value="investment">Investment</option>
+        </select>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Initial Balance
+        </label>
+        <input
+          type="number"
+          value={newAccount.initialBalance}
+          onChange={(e) =>
+            setNewAccount({
+              ...newAccount,
+              initialBalance: e.target.value,
+            })
+          }
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
+          placeholder="Enter initial balance"
+        />
+      </div>
+      <button
+        onClick={handleAddAccount}
+        className="w-200 bg-fuchsia-800 text-white py-2 px-4 rounded-lg hover:bg-fuchsia-700 transition-colors"
+      >
+        Add Account
+      </button>
+    </div>
   </div>
 </div>
-
-
-
-
-<div className="bg-white rounded-lg shadow p-8 w-[800px] h-[420px] absolute top-80 left-[340px]">
-              <h3 className="text-lg font-semibold mb-4">Add New Account</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Account Name
-                  </label>
-                  <input
-                    type="text"
-                    value={newAccount.name}
-                    onChange={(e) =>
-                      setNewAccount({ ...newAccount, name: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
-                    placeholder="Enter account name"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Account Type
-                  </label>
-                  <select
-                    value={newAccount.type}
-                    onChange={(e) =>
-                      setNewAccount({ ...newAccount, type: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
-                  >
-                    <option value="checking">Checking</option>
-                    <option value="savings">Savings</option>
-                    <option value="investment">Investment</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Initial Balance
-                  </label>
-                  <input
-                    type="number"
-                    value={newAccount.initialBalance}
-                    onChange={(e) =>
-                      setNewAccount({
-                        ...newAccount,
-                        initialBalance: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
-                    placeholder="Enter initial balance"
-                  />
-                </div>
-                <button
-                  onClick={handleAddAccount}
-                  className="w-full bg-fuchsia-800 text-white py-2 px-4 rounded-lg hover:bg-fuchsia-700 transition-colors"
-                >
-                  Add Account
-                </button>
-              </div>
-            </div>
-          </div>
+ 
+</div> 
+         
         )}
 
         {activeTab === "Settings" && (
