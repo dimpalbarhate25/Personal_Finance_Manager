@@ -118,7 +118,7 @@ updateBalanceAndCategories(transaction); // ✅ updates boxes too
         </tbody>
       </table>
 
-      <button onClick={() => setShowForm(true)} className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700">
+      <button onClick={() => setShowForm(true)} className="fixed bottom-6 right-6 bg-fuchsia-800 text-white p-4 rounded-full shadow-lg hover:bg-fuchsia-800">
         <Plus />
       </button>
 
@@ -151,7 +151,7 @@ updateBalanceAndCategories(transaction); // ✅ updates boxes too
             </select>
             <div className="flex justify-end space-x-2">
               <button onClick={() => setShowForm(false)} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
-              <button onClick={handleAdd} className="px-4 py-2 bg-blue-600 text-white rounded">Add</button>
+              <button onClick={handleAdd} className="px-4 py-2 bg-fuchsia-800 text-white rounded">Add</button>
             </div>
           </div>
         </div>

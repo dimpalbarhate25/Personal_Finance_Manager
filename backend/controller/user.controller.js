@@ -1,8 +1,8 @@
-import User from "../models/user.model.js";
+// controller/user.controller.js
+import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import createTokenAndSaveCookie from "../jwt/generateToken.js";
 
-// ✅ SIGNUP with profession
 export const signup = async (req, res) => {
   try {
     const { name, email, password, confirmpassword, profession } = req.body;
@@ -15,8 +15,8 @@ export const signup = async (req, res) => {
       return res.status(400).json({ message: "Password and confirm password do not match" });
     }
 
-    const user = await User.findOne({ email });
-    if (user) {
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
       return res.status(400).json({ message: "Email already exists" });
     }
 
@@ -26,35 +26,35 @@ export const signup = async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      profession, // ✅ saving profession
+      profession
     });
 
     await newUser.save();
 
-    if (newUser) {
-      createTokenAndSaveCookie(newUser._id, res);
-      res.status(201).json({
-        message: "User registered successfully",
-        user: {
-          _id: newUser._id,
-          name: newUser.name,
-          email: newUser.email,
-          profession: newUser.profession,
-        },
-      });
-    }
+    const token = createTokenAndSaveCookie(newUser._id, res);
+
+    res.status(201).json({
+      message: "User registered successfully",
+      token,
+      user: {
+        _id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        profession: newUser.profession
+      }
+    });
+
   } catch (error) {
-    console.log(error);
+    console.error("Signup error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-// ✅ LOGIN
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
 
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ message: "Invalid email or password" });
     }
@@ -64,43 +64,43 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
-    createTokenAndSaveCookie(user._id, res);
+    const token = createTokenAndSaveCookie(user._id, res);
+
     res.status(200).json({
       message: "User logged in successfully",
+      token,
       user: {
         _id: user._id,
         name: user.name,
         email: user.email,
-        profession: user.profession,
-      },
+        profession: user.profession
+      }
     });
   } catch (error) {
-    console.log(error);
+    console.error("Login error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-// ✅ LOGOUT
-export const logout = async (req, res) => {
+export const logout = (req, res) => {
   try {
     res.clearCookie("jwt");
     res.status(200).json({ message: "User logged out successfully" });
   } catch (error) {
-    console.log(error);
+    console.error("Logout error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-// ✅ GET USER PROFILE
 export const getUserProfile = async (req, res) => {
   try {
-    const loggedInUser = req.User._id;
+    const loggedInUserId = req.user._id;
 
-    const filteredUsers = await User.find({ _id: { $ne: loggedInUser } }).select("-password");
+    const users = await User.find({ _id: { $ne: loggedInUserId } }).select("-password");
 
-    res.status(200).json({ users: filteredUsers });
+    res.status(200).json({ users });
   } catch (error) {
-    console.log("Error in getUserProfile controller:", error);
+    console.error("Get profile error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };

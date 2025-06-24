@@ -21,12 +21,18 @@ export default function Login() {
       password: data.password,
     };
 
-    axios.post("http://localhost:5002/user/login", userinfo, { withCredentials: true })
+    axios.post("http://localhost:5002/user/login", userinfo, {
+      withCredentials: true
+    })
       .then((response) => {
         alert("Logged in successfully!");
-        localStorage.setItem("messenger", JSON.stringify(response.data));
-        setAuthUser(response.data);
-        navigate("/");
+
+        // ✅ Save token and user data separately
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+
+        setAuthUser(response.data.user);  // If you're using context
+        navigate("/dashboard"); // or wherever you want
       })
       .catch((error) => {
         if (error.response) {
@@ -43,11 +49,11 @@ export default function Login() {
         onSubmit={handleSubmit(onSubmit)}
         className="border border-black px-6 py-4 rounded-md space-y-3 w-96 bg-white"
       >
-        <h1 className="text-2xl text-center text-fuchsia-800 font-bold">MESSENGER</h1>
+        <h1 className="text-2xl text-center text-fuchsia-800 font-bold">FINANCE MANAGER</h1>
         <h2 className="text-lg text-center">
           Login to your <span className="text-fuchsia-600 font-semibold">Account</span>
         </h2>
-        <p className="text-sm text-center text-gray-500">It's free and always will be</p>
+        <p className="text-sm text-center text-gray-500">Secure your budget & track expenses!</p>
 
         {/* Email */}
         <label className="input input-bordered flex items-center gap-4">

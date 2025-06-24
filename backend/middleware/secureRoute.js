@@ -1,28 +1,44 @@
 // middleware/secureRoute.js
-
 import jwt from "jsonwebtoken";
-import User from "../models/user.model.js";
+import User from "../models/User.js";
 
 const secureRoute = async (req, res, next) => {
   try {
-    const token = req.cookies.jwt; // ⬅️ JWT expected in cookie
+    let token;
 
-    if (!token) {
-      return res.status(401).json({ message: "Not authorized, token missing" });
+    // ✅ Get token from cookie
+    if (req.cookies && req.cookies.jwt) {
+      token = req.cookies.jwt;
     }
 
+    // ✅ OR from Authorization header (for Postman)
+    else if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer ")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
+    }
+
+    // ❌ No token found
+    if (!token) {
+      return res.status(401).json({ message: "No token, authorization denied" });
+    }
+
+    // ✅ Decode token
     const decoded = jwt.verify(token, process.env.JWT_TOKEN);
 
-    const user = await User.findById(decoded.userId).select("-password");
+    // ✅ Find user and attach to req
+    const user = await User.findById(decoded.id).select("-password");
+
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(401).json({ message: "User not found" });
     }
 
-    req.User = user; // ✅ Standard naming for consistency with your controller
+    req.user = user;
     next();
-  } catch (error) {
-    console.error("secureRoute error:", error.message);
-    res.status(401).json({ message: "Invalid or expired token" });
+  } catch (err) {
+    console.error("Auth Middleware Error:", err);
+    res.status(401).json({ message: "Token is not valid" });
   }
 };
 

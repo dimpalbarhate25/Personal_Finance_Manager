@@ -4,6 +4,7 @@ import { AccountsPieChart, Tips } from "./DashboardWidgets";
 import BudgetPage from "./BudgetPage"; 
 import TransactionPage from "./TransactionPage"; // Adjust path as needed
 import { useNavigate } from "react-router-dom";
+import CategoriesList from "./categories/CategoriesList";
 
 import {
   DollarSign,
@@ -40,6 +41,27 @@ import {
   LineChart,
   Line,
 } from "recharts";
+const loginUser = async () => {
+  const response = await axios.post("/api/login", credentials);
+  localStorage.setItem("token", response.data.token); // ✅ this is safe
+};
+
+const fetchUserData = async () => {
+  try {
+    const token = localStorage.getItem("token");
+
+    const res = await fetch("http://localhost:5000/api/transactions", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+    setTransactions(data); // ✅ update state
+  } catch (err) {
+    console.error("Fetch failed", err);
+  }
+};
 
 const FinancialDashboard = ({
   transactions,
@@ -720,6 +742,8 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
                   >
                     Add Category
                   </button>
+                  <h2 className="text-xl font-semibold mt-4 mb-2">Your Categories</h2>
+      <CategoriesList />
                 </div>
 
                 {/* Charts Section Expense Distribution*/}
