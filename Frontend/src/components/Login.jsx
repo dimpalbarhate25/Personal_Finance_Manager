@@ -31,8 +31,10 @@ export default function Login() {
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("user", JSON.stringify(response.data.user));
 
-        setAuthUser(response.data.user);  // If you're using context
-        navigate("/dashboard"); // or wherever you want
+setAuthUser({
+    ...response.data.user,
+    token: response.data.token, // ✅ add this
+  });        navigate("/dashboard"); // or wherever you want
       })
       .catch((error) => {
         if (error.response) {

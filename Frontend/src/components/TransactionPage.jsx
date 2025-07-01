@@ -52,23 +52,39 @@ initialTransactions,
   const filteredTransactions = useMemo(() =>
     transactions.filter(t => t.date.startsWith(selectedMonth)), [transactions, selectedMonth]);
 
-  const chartData = useMemo(() => {
+const chartData = useMemo(() => {
   const grouped = {};
-  filteredTransactions.forEach(tx => {
-    grouped[tx.date] = (grouped[tx.date] || 0) + tx.sum;
+
+  filteredTransactions.forEach((tx) => {
+    const date = tx.date;
+    if (!grouped[date]) {
+      grouped[date] = { date, income: 0, expense: 0 };
+    }
+
+    const amount = Number(tx.amount || tx.sum || 0);
+    if (tx.type === "income") {
+      grouped[date].income += amount;
+    } else if (tx.type === "expense") {
+      grouped[date].expense += amount;
+    }
   });
-  return Object.entries(grouped).map(([date, amount]) => ({ date, amount }));
+
+  return Object.values(grouped);
 }, [filteredTransactions]);
 
 
 const handleAdd = async () => {
   const { purpose, category, sum, date, type } = newTransaction;
-  if (!purpose || !sum || !date) return alert("Fill all fields");
+
+  const parsedAmount = parseFloat(sum);
+  if (!purpose || isNaN(parsedAmount) || parsedAmount <= 0 || !date) {
+    return alert("Fill all fields correctly and ensure amount > 0");
+  }
 
   const transaction = {
     note: purpose,
     category,
-    amount: parseFloat(sum),
+    amount: parsedAmount,
     date,
     type,
   };
@@ -78,18 +94,38 @@ const handleAdd = async () => {
     const { transaction: savedTx, newBalance } = res.data;
 
     setTransactions((prev) => [savedTx, ...prev]);
-if (typeof setBalance === 'function') {
-  setBalance(newBalance); // ✅ NOW SAFE AND CORRECT
-}
- 
+    if (typeof setBalance === "function") {
+      setBalance(newBalance);
+    }
+
     setShowForm(false);
-    setNewTransaction({ ...newTransaction, purpose: "", sum: "" });
+    setNewTransaction({
+      ...newTransaction,
+      purpose: "",
+      sum: "",
+    });
   } catch (err) {
     console.error("Add transaction error:", err);
     alert("Error adding transaction");
   }
 };
 
+const defaultCategories = [
+  { name: "Shopping" },
+  { name: "Food & Drinks" },
+  { name: "Bills & Utilities" },
+  { name: "Others" },
+];
+const mergedCategoriesForForm = [
+  ...defaultCategories,
+  ...categories.filter(
+    (catFromDb) =>
+      !defaultCategories.some(
+        (defaultCat) =>
+          defaultCat.name.toLowerCase() === catFromDb.name.toLowerCase()
+      )
+  ),
+];
 
   return (
     <div className="p-6">
@@ -102,21 +138,16 @@ if (typeof setBalance === 'function') {
 
       {chartData.length > 0 && (
   <ResponsiveContainer width="100%" height={300}>
-    <BarChart data={chartData}>
-      <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey="date" />
-      <YAxis />
-      <Tooltip />
-      <Bar dataKey="amount">
-        {chartData.map((entry, index) => (
-          <Cell
-            key={`cell-${index}`}
-            fill={entry.amount < 0 ? "#ef4444" : "#10b981"}
-          />
-        ))}
-      </Bar>
-    </BarChart>
-  </ResponsiveContainer>
+  <BarChart data={chartData}>
+    <CartesianGrid strokeDasharray="3 3" />
+    <XAxis dataKey="date" />
+    <YAxis />
+    <Tooltip />
+    <Bar dataKey="income" fill="#10b981" name="Income" />
+    <Bar dataKey="expense" fill="#ef4444" name="Expense" />
+  </BarChart>
+</ResponsiveContainer>
+
 )}
 
 
@@ -140,7 +171,7 @@ if (typeof setBalance === 'function') {
               </td>
               <td>{t.date}</td>
               <td>
-                <button onClick={() => deleteTransaction(t._id)} className="text-red-500 hover:text-red-700">
+                <button onClick={() => deleteTransaction(t)} className="text-red-500 hover:text-red-700">
                   <Trash2 size={16} />
                 </button>
               </td>
@@ -157,23 +188,26 @@ if (typeof setBalance === 'function') {
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center">
           <div className="bg-white p-6 rounded-md w-full max-w-md space-y-3">
             <h3 className="text-xl font-bold">Add Transaction</h3>
-            <input type="text" placeholder="Purpose" className="input w-full" value={newTransaction.purpose}
+            <input type="text" placeholder="Purpose" className="input w-full" value={newTransaction.note}
               onChange={(e) => setNewTransaction({ ...newTransaction, purpose: e.target.value })} />
             <input type="number" placeholder="Amount" className="input w-full" value={newTransaction.sum}
-              onChange={(e) => setNewTransaction({ ...newTransaction, sum: e.target.value })} />
+              onChange={(e) => setNewTransaction({ ...newTransaction,sum: e.target.value.trim(), })} />
             <input type="date" className="input w-full" value={newTransaction.date}
               onChange={(e) => setNewTransaction({ ...newTransaction, date: e.target.value })} />
-           <select
+         <select
   value={newTransaction.category}
+  onChange={(e) =>
+    setNewTransaction({ ...newTransaction, category: e.target.value })
+  }
   className="input w-full"
-  onChange={(e) => setNewTransaction({ ...newTransaction, category: e.target.value })}
 >
-  {categories.map((cat) => (
+  {mergedCategoriesForForm.map((cat) => (
     <option key={cat.name} value={cat.name}>
       {cat.name}
     </option>
   ))}
 </select>
+
 
             <select value={newTransaction.type} className="input w-full"
               onChange={(e) => setNewTransaction({ ...newTransaction, type: e.target.value })}>

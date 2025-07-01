@@ -1,10 +1,11 @@
-import React, { useEffect ,useState } from "react";
+import React, { useMemo ,useEffect ,useState } from "react";
 import { Link } from "react-router-dom";
 import { AccountsPieChart, Tips } from "./DashboardWidgets";
 import BudgetPage from "./BudgetPage"; 
 import TransactionPage from "./TransactionPage"; // Adjust path as needed
 import { useNavigate } from "react-router-dom";
 import CategoriesList from "./categories/CategoriesList";
+import axios from "axios";
 
 import {
   DollarSign,
@@ -19,11 +20,16 @@ import {
   TrendingUp,
   CreditCard,
   Wallet,
-  Building2,
+  Building,
   Trash2,
   Edit3,
   IndianRupee,
   ReceiptText,
+ 
+
+  Banknote,
+  PiggyBank,
+  Building2,
 } from "lucide-react";
 
 import {
@@ -74,6 +80,10 @@ const FinancialDashboard = ({
   budget,            // ✅ receive it here
   setBudget  
 }) => {
+  const [categoryRefreshKey, setCategoryRefreshKey] = useState(0);
+// Capitalizes the first letter of a string
+const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryColor, setNewCategoryColor] = useState("bg-indigo-500");
@@ -112,20 +122,21 @@ const FinancialDashboard = ({
   const purposeSums = [];
 
   transactions.forEach((tx) => {
-    if (tx.type !== "expense") return;
-    const category = tx.category;
-    const purpose = tx.purpose;
-    const amount = Math.abs(tx.sum);
+  if (tx.type !== "expense") return;
 
-    if (!categorySums[category]) categorySums[category] = 0;
-    categorySums[category] += amount;
+  const category = tx.category || "Uncategorized";
+  const purpose = tx.note || "General";
+  const amount = Math.abs(Number(tx.amount || tx.sum || 0));
 
-    purposeSums.push({
-      name: purpose,
-      category,
-      value: amount,
-    });
+  if (!categorySums[category]) categorySums[category] = 0;
+  categorySums[category] += amount;
+
+  purposeSums.push({
+    name: purpose,
+    category,
+    value: amount,
   });
+});
 
   const categoryData = Object.entries(categorySums).map(
     ([name, value], index) => ({
@@ -152,32 +163,45 @@ const FinancialDashboard = ({
     Leaf,
     CreditCard,
     Wallet,
-    Building2,
+    Building,
+  };
+const thisMonthCashAdded = useMemo(() => {
+  return transactions
+    .filter(
+      (tx) =>
+        tx.category === "Cash" &&
+        tx.type === "income" &&
+        tx.date.startsWith(new Date().toISOString().slice(0, 7))
+    )
+    .reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+}, [transactions]);
+
+
+
+ const [accounts, setAccounts] = useState([]);
+useEffect(() => {
+  const fetchAccounts = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get("http://localhost:5002/api/accounts", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setAccounts(res.data);
+    } catch (err) {
+      console.error("Failed to fetch accounts:", err);
+    }
   };
 
-  const [accounts, setAccounts] = useState([
-    {
-      id: 1,
-      name: "Checking Account",
-      balance: 0.0,
-      type: "checking",
-      icon: CreditCard,
-    },
-    {
-      id: 2,
-      name: "Savings Account",
-      balance: 0.0,
-      type: "savings",
-      icon: Wallet,
-    },
-    {
-      id: 3,
-      name: "Investment Account",
-      balance: 0.0,
-      type: "investment",
-      icon: Building2,
-    },
-  ]);
+  fetchAccounts();
+}, []);
+useEffect(() => {
+  if (accounts.length > 0 && !newCash.account) {
+    setNewCash((prev) => ({
+      ...prev,
+      account: accounts[0].name, // set to first valid account name
+    }));
+  }
+}, [accounts]);
 
   const [newExpense, setNewExpense] = useState({
     purpose: "",
@@ -186,266 +210,420 @@ const FinancialDashboard = ({
     category: "Food & Drinks",
   });
 
-  const [newCash, setNewCash] = useState({
-    amount: "",
-    account: "Checking Account",
-    description: "",
-  });
+const [newCash, setNewCash] = useState({
+  amount: "",
+  account: accounts[0]?.name || "",  // <-- dynamically assign first available
+  description: "",
+});
 
-  const [newAccount, setNewAccount] = useState({
-    name: "",
-    type: "checking",
-    initialBalance: "",
-  });
 
-  const [settings, setSettings] = useState({
-    currency: "INR",
-    budgetLimit: 1000,
-    notifications: true,
-    darkMode: false,
-  });
+const [newAccount, setNewAccount] = useState({
+  name: "",
+  type: "checking",
+  balance: "",
+  icon: "Wallet",
+});
 
-  const computedCategories = [
-    "Shopping",
-    "Food & Drinks",
-    "Bills & Utilities",
-    "Others",
-  ].map((name) => {
+  const [settings, setSettings] = useState(() => {
+  const stored = localStorage.getItem("user-settings");
+  return stored
+    ? JSON.parse(stored)
+    : {
+        currency: "INR",
+        budgetLimit: 1000,
+        notifications: true,
+        darkMode: false,
+      };
+});
+useEffect(() => {
+  localStorage.setItem("user-settings", JSON.stringify(settings));
+}, [settings]);
+
+useEffect(() => {
+  if (settings.darkMode) {
+    document.documentElement.classList.add("dark");
+  } else {
+    document.documentElement.classList.remove("dark");
+  }
+}, [settings.darkMode]);
+
+
+const computedCategories = [
+  "Shopping",
+  "Food & Drinks",
+  "Bills & Utilities",
+  "Others",
+].map((name) => {
+  const amount = transactions
+    .filter((tx) => tx.category === name && tx.type === "expense")
+    .reduce((sum, tx) => sum + Math.abs(tx.amount || tx.sum || 0), 0);
+
+  const colorMap = {
+    Shopping: "bg-cyan-500",
+    "Food & Drinks": "bg-amber-500",
+    "Bills & Utilities": "bg-red-500",
+    Others: "bg-gray-800",
+  };
+
+  const iconMap = {
+    Shopping: ShoppingCart,
+    "Food & Drinks": Utensils,
+    "Bills & Utilities": Home,
+    Others: Leaf,
+    
+  };
+
+  return {
+    name,
+    amount,
+    color: colorMap[name],
+    icon: iconMap[name],
+  };
+});
+
+  const mergedCategories = [...computedCategories];
+
+categories.forEach((catFromDb) => {
+  const alreadyExists = mergedCategories.some(
+    (cat) => cat.name.toLowerCase() === catFromDb.name.toLowerCase()
+  );
+
+  if (!alreadyExists) {
+const Icon = iconOptions[capitalize(catFromDb.icon)] || null;
     const amount = transactions
-      .filter((tx) => tx.category === name && tx.type === "expense")
-      .reduce((sum, tx) => sum + Math.abs(tx.sum), 0);
+      .filter(
+        (tx) => tx.category === catFromDb.name && tx.type === "expense"
+      )
+      .reduce((sum, tx) => sum + Math.abs(tx.amount || tx.sum || 0), 0);
 
-    const colorMap = {
-      Shopping: "#06b6d4",
-      "Food & Drinks": "#f59e0b",
-      "Bills & Utilities": "#ef4444",
-      Others: "#1f2937",
-    };
-
-    const iconMap = {
-      Shopping: ShoppingCart,
-      "Food & Drinks": Utensils,
-      "Bills & Utilities": Home,
-      Others: Leaf,
-    };
-
-    return {
-      name,
+    mergedCategories.push({
+       _id: catFromDb._id,
+      name: catFromDb.name,
       amount,
-      color: colorMap[name],
-      icon: iconMap[name],
-    };
-  });
+      color: catFromDb.color,
+      icon: Icon,
+    });
+  }
+});
+
+const defaultCategories = [
+  { name: "Shopping", color: "bg-cyan-500", icon: "ShoppingCart" },
+  { name: "Food & Drinks", color: "bg-amber-500", icon: "Utensils" },
+  { name: "Bills & Utilities", color: "bg-red-500", icon: "Home" },
+  { name: "Others", color: "bg-gray-800", icon: "Leaf" }
+];
+
+const mergedCategoriesForForm = [
+  ...defaultCategories,
+  ...categories.filter(
+    (catFromDb) =>
+      !defaultCategories.some(
+        (staticCat) =>
+          staticCat.name.toLowerCase() === catFromDb.name.toLowerCase()
+      )
+  ),
+];
+
+
 
   //category handling and adding
 
-  const handleAddCategory = () => {
-    if (!newCategoryName.trim()) {
-      alert("Please enter a category name");
-      return;
-    }
+const handleAddCategory = async () => {
+  if (!newCategoryName.trim()) {
+    alert("Please enter a category name");
+    return;
+  }
 
-    if (
-      categories.some(
-        (cat) => cat.name.toLowerCase() === newCategoryName.toLowerCase()
-      )
-    ) {
-      alert("Category already exists");
-      return;
-    }
+  const token = localStorage.getItem("token");
 
-    const iconComponent = iconOptions[newCategoryIcon]; // 👈 convert string to actual component
+  try {
+    const res = await axios.post(
+      "http://localhost:5002/api/categories",
+      {
+        name: newCategoryName,
+        icon: newCategoryIcon,
+        color: newCategoryColor,
+        budgetLimit: 1000,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        withCredentials: true,
+      }
+    );
 
-    const newCategory = {
-      name: newCategoryName,
-      amount: 0,
-      color: newCategoryColor,
-      icon: iconComponent,
-    };
+    // ✅ Add the new category to local state
+    setCategories((prev) => [...prev, { ...res.data, amount: 0 }]);
 
-    setCategories((prev) => [...prev, newCategory]);
+    // Reset form
     setNewCategoryName("");
     setNewCategoryColor("bg-indigo-500");
     setNewCategoryIcon("ShoppingCart");
-  };
+  } catch (err) {
+    console.error("Error adding category:", err);
+    alert("Failed to add category");
+  }
+};
+
+
+
 
   // Handle adding expense
-  const handleAddExpense = () => {
-    if (!newExpense.purpose || !newExpense.sum || !newExpense.date) {
-      alert("Please fill in all fields");
-      return;
-    }
+ const handleAddExpense = async () => {
+  const { purpose, sum, date, category } = newExpense;
 
-    const amount = parseFloat(newExpense.sum);
-    if (amount <= 0) {
-      alert("Please enter a valid amount");
-      return;
-    }
+  const parsedAmount = parseFloat(sum);
+  if (!purpose || isNaN(parsedAmount) || parsedAmount <= 0 || !date || !category) {
+    return alert("Please fill all fields correctly");
+  }
 
-    // Create new transaction
-    const transaction = {
-      id: Date.now(),
-      purpose: newExpense.purpose,
-      category: newExpense.category,
-      sum: -amount,
-      date: newExpense.date,
-      type: "expense",
-    };
+  const transaction = {
+    note: purpose,
+    category,
+    amount: parsedAmount,
+    date,
+    type: "expense",
+  };
 
-    // Add transaction
-    addTransaction(transaction); // ✅ Adds to shared state in App.jsx
-
-    // Update balance
-    updateBalanceAndCategories(transaction);
-
-    // Reset form
+  try {
+    await addTransaction(transaction); // Sends to backend, updates state
     setNewExpense({
       purpose: "",
       sum: "",
       date: "",
       category: "Food & Drinks",
     });
-
     alert("Expense added successfully!");
-  };
+  } catch (err) {
+    console.error("Failed to add expense:", err);
+    alert("Error adding expense");
+  }
+};
+
+const handleDeleteCategoryCard = async (category) => {
+  const confirmDelete = window.confirm(
+    `Are you sure you want to delete "${category.name}" and its transactions?`
+  );
+  if (!confirmDelete) return;
+
+  const token = localStorage.getItem("token");
+
+  try {
+    const res = await axios.delete(
+      `http://localhost:5002/api/categories/${category._id}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const { refundedAmount, newBalance } = res.data;
+
+    // Update local UI
+    setCategories((prev) =>
+      prev.filter((cat) => cat._id !== category._id)
+    );
+    setTransactions((prev) =>
+      prev.filter((tx) => tx.category !== category.name)
+    );
+
+    // ✅ Update global balance with backend value
+    updateBalanceAndCategories({
+      type: "income",
+      amount: refundedAmount,
+    });
+
+    alert(`Deleted "${category.name}". ₹${refundedAmount} refunded.`);
+  } catch (err) {
+    console.error("Failed to delete category:", err);
+    alert("Error deleting category.");
+  }
+};
+
 
   // Handle adding cash
-  const handleAddCash = () => {
-    if (!newCash.amount || !newCash.account) {
-      alert("Please fill in all fields");
-      return;
-    }
+ const handleAddCash = async () => {
+  const token = localStorage.getItem("token");
 
-    const amount = parseFloat(newCash.amount);
-    if (amount <= 0) {
-      alert("Please enter a valid amount");
-      return;
-    }
+  const parsedAmount = parseFloat(newCash.amount);
+  if (!parsedAmount || parsedAmount <= 0 || !newCash.account) {
+    return alert("Please fill all fields correctly");
+  }
 
-    // Create income transaction
-    const transaction = {
-      id: Date.now(),
-      purpose: newCash.description || `Added to ${newCash.account}`,
-      category: "Income",
-      sum: amount,
-      date: new Date().toISOString().split("T")[0],
-      type: "income",
-    };
+  const selectedAccount = accounts.find(
+  (acc) => acc.name === newCash.account
+);
+if (!selectedAccount) {
+  alert("Selected account not found");
+  return;
+}
 
-    // Add transaction
-    addTransaction(transaction);
 
-    // Update balance
-    updateBalanceAndCategories(transaction);
+  try {
+    const res = await axios.post(
+      "http://localhost:5002/api/cash/add",
+       {
+    amount: parsedAmount,
+    accountName: selectedAccount.name, // ✅ Fix this
+    description: newCash.description, 
+  },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-    // Update account balance
+    // ✅ Update accounts state
     setAccounts((prev) =>
       prev.map((acc) =>
-        acc.name === newCash.account
-          ? { ...acc, balance: acc.balance + amount }
+        acc._id === res.data.updatedAccount._id
+          ? res.data.updatedAccount
           : acc
       )
     );
 
-    // Reset form
-    setNewCash({
-      amount: "",
-      account: "Checking Account",
-      description: "",
-    });
+    // ✅ Update global balance
+    const updatedBalance = Number(res.data.updatedBalance);
+    if (!isNaN(updatedBalance)) {
+      setBalance(updatedBalance);
+    }
 
+    // ✅ Update transactions (prepend)
+    setTransactions((prev) => [res.data.transaction, ...prev]);
+
+    // ✅ Reset form
+    setNewCash({ amount: "", account: "", description: "" });
     alert("Cash added successfully!");
-  };
+    console.log("Available accounts:", accounts.map(a => a.name));
+console.log("Selected:", newCash.account);
+
+  } catch (err) {
+    console.error("Failed to add cash:", err);
+    alert("Error adding cash");
+  }
+};
+
 
   // Handle adding new account
-  const handleAddAccount = () => {
-    if (!newAccount.name || !newAccount.initialBalance) {
-      alert("Please fill in all fields");
-      
-      return;
+const handleAddAccount = async () => {
+  const token = localStorage.getItem("token");
+
+  const name = newAccount.name?.trim();
+const type = newAccount.type?.trim();
+const balanceRaw = newAccount.balance;
+const balance = parseFloat(balanceRaw);
+const parsedBalance = parseFloat(newAccount.balance);
+
+if (!newAccount.name || !newAccount.type || isNaN(parsedBalance) || parsedBalance <= 0) {
+  alert("Please fill all fields correctly");
+  return;
+}
+
+
+  try {
+    const res = await axios.post(
+      "http://localhost:5002/api/accounts",
+      {
+    name: newAccount.name,
+    type: newAccount.type,
+    balance: parsedBalance,
+    icon: newAccount.icon,
+  },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    setAccounts((prev) => [...prev, res.data.account]);
+
+    const updatedBalance = Number(res.data.updatedBalance);
+    if (!isNaN(updatedBalance)) {
+      setBalance(updatedBalance);
     }
 
-    const balance = parseFloat(newAccount.initialBalance);
-    if (balance < 0) {
-      alert("Please enter a valid initial balance");
-      return;
-    }
- 
-    const account = {
-      id: Date.now(),
-      name: newAccount.name,
-      balance: balance,
-      type: newAccount.type,
-      icon:
-        newAccount.type === "checking"
-          ? CreditCard
-          : newAccount.type === "savings"
-          ? Wallet
-          : Building2,
-    };
-
-    setAccounts((prev) => [...prev, account]);
-
-    // Add initial balance as income transaction
-    if (balance > 0) {
-      const transaction = {
-        id: Date.now() + 1,
-        purpose: `Initial balance for ${newAccount.name}`,
-        category: "Income",
-        sum: balance,
-        date: new Date().toISOString().split("T")[0],
-        type: "income",
-      };
-      addTransaction(transaction);
-      updateBalanceAndCategories(transaction);
+    if (res.data.transaction) {
+      setTransactions((prev) => [res.data.transaction, ...prev]);
     }
 
-    // Reset form
-    setNewAccount({
-      name: "",
-      type: "checking",
-      initialBalance: "",
-    });
+    setNewAccount({ name: "", type: "", balance: "", icon: "" });
+    console.log("DEBUG - name:", name);
+console.log("DEBUG - type:", type);
+console.log("DEBUG - balance input:", balanceInput);
+console.log("DEBUG - parsed balance:", parsedBalance);
 
     alert("Account added successfully!");
-  };
+  } catch (err) {
+    console.error("Error adding account:", err);
+    alert("Failed to add account");
+  }
+};
+
+
+
+
 
   // Handle deleting account
-  const handleDeleteAccount = (accountId) => {
-    if (accounts.length <= 1) {
-      alert("You must have at least one account");
-      return;
+const handleDeleteAccount = async (account) => {
+  const confirm = window.confirm(`Delete account "${account.name}" and its transactions?`);
+  if (!confirm) return;
+
+  const token = localStorage.getItem("token");
+
+  try {
+    const res = await axios.delete(`http://localhost:5002/api/accounts/${account._id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    // ✅ Update frontend state
+    setAccounts((prev) => prev.filter((a) => a._id !== account._id));
+    setTransactions((prev) =>
+      prev.filter(
+        (tx) =>
+          !tx.note?.toLowerCase().includes(`initial deposit to ${account.name.toLowerCase()}`)
+      )
+    );
+
+    const updatedBalance = Number(res.data.updatedBalance);
+    if (!isNaN(updatedBalance)) {
+      setBalance(updatedBalance);
     }
 
-    const account = accounts.find((acc) => acc.id === accountId);
-    if (!account) return;
+    alert("Account and related transactions deleted.");
+  } catch (err) {
+    console.error("Failed to delete account:", err);
+    alert("Error deleting account.");
+  }
+};
 
-    if (account.balance > 0) {
-      const confirm = window.confirm(
-        `This account has a balance of ${account.balance.toFixed(
-          2
-        )}. Are you sure you want to delete it?`
-      );
-      if (!confirm) return;
 
-      // Create reverse transaction to deduct balance
-      const transaction = {
-        id: Date.now(),
-        purpose: `Deleted account: ${account.name}`,
-        category: "Income", // still using 'income' so it subtracts
-        sum: -account.balance,
-        date: new Date().toISOString().split("T")[0],
-        type: "income",
-      };
+const handleUpdateCategoryBudget = async (categoryId, newLimit) => {
+  const token = localStorage.getItem("token");
+  try {
+    const res = await axios.patch(
+      `http://localhost:5002/api/categories/${categoryId}`,
+      { budgetLimit: parseFloat(newLimit) },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
-      // Update global balance
-      updateBalanceAndCategories(transaction);
-      addTransaction(transaction);
-    }
+    // Update category locally
+    setCategories((prev) =>
+      prev.map((cat) =>
+        cat._id === categoryId ? { ...cat, budgetLimit: res.data.budgetLimit } : cat
+      )
+    );
+  } catch (err) {
+    console.error("Failed to update budget limit", err);
+    alert("Could not update budget limit");
+  }
+};
 
-    setAccounts((prev) => prev.filter((acc) => acc.id !== accountId));
-    alert("Account deleted successfully!");
-  };
 
   // Handle updating settings
   const handleUpdateSettings = () => {
@@ -457,8 +635,11 @@ const FinancialDashboard = ({
     const transaction = transactions.find((t) => t.id === transactionId);
     if (!transaction) return;
 
-    // Update balance
-    setBalance((prev) => prev - transaction.sum);
+
+
+
+
+
 
     // Update category if it's an expense
     if (transaction.type === "expense") {
@@ -508,7 +689,7 @@ const FinancialDashboard = ({
           txDate.getMonth() === index
         );
       })
-      .reduce((sum, tx) => sum + tx.sum, 0);
+.reduce((sum, tx) => sum + Number(tx.amount || tx.sum || 0), 0);
 
     const expenses = transactions
       .filter((tx) => {
@@ -519,18 +700,22 @@ const FinancialDashboard = ({
           txDate.getMonth() === index
         );
       })
-      .reduce((sum, tx) => sum + Math.abs(tx.sum), 0);
+ .reduce((sum, tx) => sum + Math.abs(Number(tx.amount || tx.sum || 0)), 0); // FIXED
 
     return { month, income, expenses };
   });
 
   const thisMonthIncome = transactions
   .filter(tx => tx.type === "income" && tx.date.startsWith(new Date().toISOString().slice(0, 7)))
-  .reduce((sum, tx) => sum + tx.sum, 0);
+  .reduce((amount, tx) => amount + tx.amount, 0);
 
 const incomeTarget = 50000; // or from settings
-const percentage = (thisMonthIncome / incomeTarget) * 100;
- 
+const percentage = incomeTarget > 0
+  ? Number((thisMonthIncome / incomeTarget) * 100)
+  : 0;
+
+
+
   const getCategoryColor = (category) => {
     const colors = {
       Income: "bg-green-500",
@@ -563,6 +748,8 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
       </span>
     </div>
   );
+
+  
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -641,46 +828,39 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
 
                 </div>
 
-                {/* Category Cards */}
-                {categories.map((category, index) => {
-                  const Icon = category.icon;
-                  return (
-                    <div
-                      key={index}
-                      className={`${category.color} text-white p-4 rounded-lg transition-transform transform hover:scale-105 hover:shadow-lg relative`}
-                    >
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="text-xl opacity-90">
-                          {category.name}
-                        </span>
-                        <Icon size={24} />
-                      </div>
-                      <div className="text-xl font-bold mb-6">
-                        {settings.currency} {category.amount.toFixed(2)}
-                      </div>
 
-                      {/* Delete Button (bottom-right corner) */}
-                      <button
-                        className="absolute bottom-3 right-3 text-white hover:text-red-500"
-                        onClick={() => handleDeleteCategory(index)}
-                        title="Delete"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5"
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M9 3a1 1 0 011-1h4a1 1 0 011 1h5a1 1 0 110 2h-1.07l-.9 13.38A2 2 0 0115.04 20H8.96a2 2 0 01-1.99-1.62L6.07 5H5a1 1 0 110-2h4zm2 5a1 1 0 10-2 0v8a1 1 0 102 0V8zm4 0a1 1 0 10-2 0v8a1 1 0 102 0V8z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  );
-                })}
+
+                {/* Category Cards */}
+ {mergedCategories.map((category, index) => {
+  const Icon = category.icon;
+  return (
+    <div
+      key={category.name + index}
+      className={`${category.color} text-white p-4 rounded-lg transition-transform transform hover:scale-105 hover:shadow-lg relative`}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-xl opacity-90">{category.name}</span>
+        {Icon ? <Icon size={24} /> : <span>❓</span>}
+      </div>
+      <div className="text-xl font-bold mb-6">
+        {settings.currency} {Number(category.amount || 0).toFixed(2)}
+      </div>
+       {/* 🗑️ Delete Button */}
+      {category._id && (
+  <button
+    onClick={() => handleDeleteCategoryCard(category)}
+    className="absolute bottom-2 right-2 text-white hover:text-red-300"
+    title="Delete"
+  >
+    <Trash2 size={16} />
+  </button>
+)}
+
+    </div>
+  );
+})}
+
+
               </div>
             </div>
 
@@ -697,6 +877,7 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
                       placeholder="Category name"
                       className="w-full px-3 py-2 border rounded "
                     />
+
 
                     <div className="space-y-5 !mb-10">
                       <label className="block text-base font-medium mb-1 ">
@@ -749,7 +930,7 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
                     Add Category
                   </button>
                   <h2 className="text-xl font-semibold mt-4 mb-2">Your Categories</h2>
-      <CategoriesList />
+
                 </div>
 
                 {/* Charts Section Expense Distribution*/}
@@ -758,6 +939,7 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
                     <h2 className="text-2xl font-semibold mb-4 text-center mt-4">
                       Expense Distribution
                     </h2>
+                    {categoryData.length > 0 ? (
                     <ResponsiveContainer width="100%" height={350}>
                       <PieChart>
                         {/* Inner pie - Categories */}
@@ -806,6 +988,11 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
                         <Tooltip />
                       </PieChart>
                     </ResponsiveContainer>
+                    ) : (
+                      <div className="text-center text-gray-500 py-10">
+    No expense data to visualize yet.
+  </div>
+)}
                   </div>
                 </div>
               </div>
@@ -884,7 +1071,7 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
                         {transactions.map((transaction) => (
                           <tr key={transaction.id}>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {transaction.purpose}
+                              {transaction.note}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span
@@ -903,7 +1090,7 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
                               }`}
                             >
                               {transaction.type === "income" ? "+" : ""}
-                              {transaction.sum.toFixed(2)} {settings.currency}
+{Number(transaction.amount || 0).toFixed(2)} {settings.currency}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {transaction.date}
@@ -911,7 +1098,7 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               <button
                                 onClick={() =>
-                                  handleDeleteTransaction(transaction.id)
+                                  deleteTransaction(transaction)
                                 }
                                 className="text-red-600 hover:text-red-900"
                               >
@@ -987,23 +1174,27 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
                       Category
                     </label>
                     <div className="grid grid-cols-2 gap-2">
-                      {categories.map((cat) => (
-                        <button
-                          key={cat.name}
-                          type="button"
-                          onClick={() =>
-                            setNewExpense({ ...newExpense, category: cat.name })
-                          }
-                          className={`p-2 rounded-lg border text-sm ${
-                            newExpense.category === cat.name
-                              ? "border-fuchsia-800 bg-red-50 text-fuchsia-700"
-                              : "border-gray-300 hover:border-gray-400"
-                          }`}
-                        >
-                          <cat.icon size={16} className="mx-auto mb-1" />
-                          {cat.name}
-                        </button>
-                      ))}
+                     {mergedCategories.map((cat) => {
+  const Icon = cat.icon;
+  return (
+    <button
+      key={cat.name}
+      type="button"
+      onClick={() =>
+        setNewExpense({ ...newExpense, category: cat.name })
+      }
+      className={`p-2 rounded-lg border text-sm ${
+        newExpense.category === cat.name
+          ? "border-fuchsia-800 bg-red-50 text-fuchsia-700"
+          : "border-gray-300 hover:border-gray-400"
+      }`}
+    >
+      {Icon && <Icon size={16} className="mx-auto mb-1" />}
+      {cat.name}
+    </button>
+  );
+})}
+
                     </div>
                   </div>
                   <button
@@ -1021,46 +1212,103 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
             )}
 
             {/* Progress Bars Section */}
-            <div className="mt-8 bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold mb-6">Budget Progress</h3>
-              <div className="space-y-4">
-                {categories.map((category, index) => {
-                  const budget = settings.budgetLimit / categories.length;
-                  const percentage = Math.min(
-                    (category.amount / budget) * 100,
-                    100
-                  );
-                  return (
-                    <div key={index} className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-700">
-                          {category.name}
-                        </span>
-                        <span className="text-sm text-gray-500">
-                          {settings.currency} {category.amount.toFixed(2)} /{" "}
-                          {settings.currency} {budget.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full transition-all duration-300 ${
-                            percentage > 80
-                              ? "bg-fuchsia-400"
-                              : percentage > 60
-                              ? "bg-yellow-500"
-                              : "bg-green-500"
-                          }`}
-                          style={{ width: `${percentage}%` }}
-                        ></div>
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {percentage.toFixed(1)}% of budget used
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+           {/* ✅ Progress Bars Section — Working for static + user categories */}
+<div className="mt-8 bg-white rounded-lg shadow p-6">
+  <h3 className="text-lg font-semibold mb-6">Budget Progress</h3>
+
+  <div className="space-y-6">
+    {[
+      ...["Shopping", "Food & Drinks", "Bills & Utilities", "Others"].map((name) => {
+        const staticCat = computedCategories.find((c) => c.name === name) || {};
+        return {
+          name,
+          amount: staticCat.amount || 0,
+          budgetLimit: staticCat.budgetLimit || 1000,
+          _id: null,
+        };
+      }),
+      ...categories
+  .filter(
+    (cat) =>
+      !["Shopping", "Food & Drinks", "Bills & Utilities", "Others"].includes(cat.name)
+  )
+  .map((cat) => {
+    const spent = transactions
+      .filter((tx) => tx.category === cat.name && tx.type === "expense")
+      .reduce((sum, tx) => sum + Math.abs(Number(tx.amount || tx.sum || 0)), 0);
+
+    return {
+      name: cat.name,
+      amount: spent,
+      budgetLimit: cat.budgetLimit || 1000,
+      _id: cat._id,
+    };
+  })
+
+    ].map((category, index) => {
+      const spent = category.amount;
+      const budget = category.budgetLimit;
+      const percentage = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
+
+      const handleBudgetChange = (e) => {
+        const newLimit = parseFloat(e.target.value);
+        if (isNaN(newLimit) || newLimit < 0) return;
+
+        if (category._id) {
+          handleUpdateCategoryBudget(category._id, newLimit);
+        } else {
+          setCategories((prev) =>
+            prev.map((cat) =>
+              cat.name === category.name ? { ...cat, budgetLimit: newLimit } : cat
+            )
+          );
+        }
+      };
+
+      return (
+        <div key={index} className="space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium text-gray-700">{category.name}</span>
+            <span className="text-sm text-gray-500">
+              ₹{spent.toFixed(2)} / ₹{budget.toFixed(2)}
+            </span>
+          </div>
+
+          <input
+            type="number"
+            className="text-sm border px-2 py-1 rounded w-32 mb-1"
+            defaultValue={budget}
+            onBlur={handleBudgetChange}
+          />
+
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className={`h-2 rounded-full transition-all duration-300 ${
+                percentage > 80
+                  ? "bg-fuchsia-400"
+                  : percentage > 60
+                  ? "bg-yellow-500"
+                  : "bg-green-500"
+              }`}
+              style={{ width: `${percentage}%` }}
+            ></div>
+          </div>
+
+          <div className="text-xs text-gray-500">
+            {percentage.toFixed(1)}% of budget used
+          </div>
+          {/* ⚠ Budget Exceeded Alert */}
+  {spent > budget && (
+    <div className="text-xs text-red-600 mt-1">
+      ⚠ You've exceeded this budget by ₹{(spent - budget).toFixed(2)}
+    </div>
+  )}
+        </div>
+      );
+    })}
+  </div>
+</div>
+
           </div>
         )}
         {activeTab === "Transactions" && (
@@ -1116,9 +1364,9 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
               >
-                {accounts.map((account) => (
-                  <option key={account.id} value={account.name}>
-                    {account.name}
+                {accounts.map((acc) => (
+                  <option key={acc._id} value={acc.name}>
+                    {acc.name}
                   </option>
                 ))}
               </select>
@@ -1148,8 +1396,10 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
           </div>
 
           <div className="mt-6 text-lg font-medium text-gray-800">
-  Total Cash Added in {new Date().toLocaleString('default', { month: 'long' })}: ₹{thisMonthIncome.toFixed(2)}
+  Total Cash Added in {new Date().toLocaleString('default', { month: 'long' })}: ₹
+  {thisMonthCashAdded.toFixed(2)}
 </div>
+
 
         </div>
       </div>
@@ -1166,10 +1416,12 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
               .map((tx) => (
                 <li key={tx.id} className="bg-gray-50 rounded shadow p-3">
                   <div className="flex justify-between">
-                    <span>{tx.purpose}</span>
+                    <span>{tx.note} added to {tx.account}</span>
+                     
                     <span className="text-green-600 font-medium">
-                      +₹{tx.sum.toFixed(2)}
-                    </span>
+  ₹{Number(tx.amount || 0).toFixed(2)}
+</span>
+
                   </div>
                   <div className="text-sm text-gray-500">{tx.date}</div>
                 </li>
@@ -1191,7 +1443,9 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
       style={{ width: `${Math.min(percentage, 100)}%` }}
     ></div>
   </div>
-  <p className="text-xs text-gray-500 mt-1">{percentage.toFixed(1)}% reached</p>
+<p className="text-xs text-gray-500 mt-1">
+  {Number.isFinite(percentage) ? `${percentage.toFixed(1)}% reached` : "0% reached"}
+</p>
 </div>
 
     <div className="mt-6 bg-blue-50 border-l-4 border-blue-400 p-4 rounded-md">
@@ -1208,24 +1462,24 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
               <h2 className="text-2xl font-bold">Accounts</h2>
               <div className="text-lg font-semibold text-green-600">
                 Total: {settings.currency}{" "}
-                {accounts.reduce((sum, acc) => sum + acc.balance, 0).toFixed(2)}
+{Number(accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0)).toFixed(2)}
               </div>
             </div>
 
             {/* Existing Accounts */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               {accounts.map((account) => {
-                const Icon = account.icon;
+const Icon = iconOptions[account.icon] || Wallet; // fallback to Wallet if icon not found
                 return (
                   <div
-                    key={account.id}
+                    key={account._id}
                     className="bg-white rounded-lg shadow p-6"
                   >
                     <div className="flex items-center justify-between mb-4">
                       <Icon size={24} className="text-gray-600" />
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => handleDeleteAccount(account.id)}
+                          onClick={() => handleDeleteAccount(account)}
                           className="text-red-600 hover:text-red-900"
                         >
                           <Trash2 size={16} />
@@ -1236,7 +1490,7 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
                       {account.name}
                     </h3>
                     <div className="text-2xl font-bold text-green-600 mb-2">
-                      {settings.currency} {account.balance.toFixed(2)}
+{settings.currency} {Number(account.balance || 0).toFixed(2)}
                     </div>
                     <span className="text-sm text-gray-500 capitalize">
                       {account.type} Account
@@ -1299,13 +1553,14 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
         </label>
         <input
           type="number"
-          value={newAccount.initialBalance}
-          onChange={(e) =>
-            setNewAccount({
-              ...newAccount,
-              initialBalance: e.target.value,
-            })
-          }
+         value={newAccount.balance}
+onChange={(e) =>
+  setNewAccount({
+    ...newAccount,
+    balance: e.target.value,
+  })
+}
+
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
           placeholder="Enter initial balance"
         />
@@ -1323,130 +1578,122 @@ const percentage = (thisMonthIncome / incomeTarget) * 100;
 </div> 
          
         )}
+{activeTab === "Settings" && (
+  <div className="p-6 dark:bg-gray-900 min-h-screen text-gray-900 dark:text-white transition-colors duration-300">
+    <h2 className="text-2xl font-bold mb-6">Settings</h2>
 
-        {activeTab === "Settings" && (
-          <div className="p-6">
-            <h2 className="text-2xl font-bold mb-6">Settings</h2>
-            <div className="bg-white rounded-lg shadow p-6 max-w-md">
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Currency
-                  </label>
-                  <select
-                    value={settings.currency}
-                    onChange={(e) =>
-                      setSettings({ ...settings, currency: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
-                  >
-                    <option value="EUR">EUR (€)</option>
-                    <option value="USD">USD ($)</option>
-                    <option value="GBP">GBP (£)</option>
-                    <option value="INR">INR (₹)</option>
-                  </select>
-                </div>
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 max-w-md">
+      <div className="space-y-6">
+        <div>
+          <label className="block text-sm font-medium mb-1">Currency</label>
+          <select
+            value={settings.currency}
+            onChange={(e) =>
+              setSettings({ ...settings, currency: e.target.value })
+            }
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800 dark:bg-gray-700 dark:border-gray-600"
+          >
+            <option value="EUR">EUR (€)</option>
+            <option value="USD">USD ($)</option>
+            <option value="GBP">GBP (£)</option>
+            <option value="INR">INR (₹)</option>
+          </select>
+        </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Monthly Budget Limit
-                  </label>
-                  <input
-                    type="number"
-                    value={settings.budgetLimit}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        budgetLimit: parseFloat(e.target.value),
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800"
-                    placeholder="Enter budget limit"
-                  />
-                </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Monthly Budget Limit</label>
+          <input
+            type="number"
+            value={settings.budgetLimit}
+            onChange={(e) =>
+              setSettings({
+                ...settings,
+                budgetLimit: parseFloat(e.target.value),
+              })
+            }
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-800 dark:bg-gray-700 dark:border-gray-600"
+          />
+        </div>
 
-                <div>
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={settings.notifications}
-                      onChange={(e) =>
-                        setSettings({
-                          ...settings,
-                          notifications: e.target.checked,
-                        })
-                      }
-                      className="rounded border-gray-300 text-fuchsia-800 focus:ring-fuchsia-800"
-                    />
-                    <span className="text-sm font-medium text-gray-700">
-                      Enable Notifications
-                    </span>
-                  </label>
-                </div>
+        <div>
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={settings.notifications}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  notifications: e.target.checked,
+                })
+              }
+              className="rounded border-gray-300 text-fuchsia-800 focus:ring-fuchsia-800"
+            />
+            <span className="text-sm font-medium">Enable Notifications</span>
+          </label>
+        </div>
 
-                <div>
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={settings.darkMode}
-                      onChange={(e) =>
-                        setSettings({ ...settings, darkMode: e.target.checked })
-                      }
-                      className="rounded border-gray-300 text-fuchsia-800 focus:ring-fuchsia-800"
-                    />
-                    <span className="text-sm font-medium text-gray-700">
-                      Dark Mode
-                    </span>
-                  </label>
-                </div>
+        <div>
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={settings.darkMode}
+              onChange={(e) =>
+                setSettings({ ...settings, darkMode: e.target.checked })
+              }
+              className="rounded border-gray-300 text-fuchsia-800 focus:ring-fuchsia-800"
+            />
+            <span className="text-sm font-medium">Dark Mode</span>
+          </label>
+        </div>
 
-                <button
-                  onClick={handleUpdateSettings}
-                  className="w-full bg-fuchsia-800 text-white py-2 px-4 rounded-lg hover:bg-fuchsia-700 transition-colors"
-                >
-                  Update Settings
-                </button>
-              </div>
-            </div>
+        <button
+          onClick={handleUpdateSettings}
+          className="w-full bg-fuchsia-800 text-white py-2 px-4 rounded-lg hover:bg-fuchsia-700 transition-colors"
+        >
+          Update Settings
+        </button>
+      </div>
+    </div>
 
-            {/* Settings Summary */}
-            <div className="mt-6 bg-white rounded-lg shadow p-6 max-w-md">
-              <h3 className="text-lg font-semibold mb-4">Current Settings</h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Currency:</span>
-                  <span className="font-medium">{settings.currency}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Budget Limit:</span>
-                  <span className="font-medium">
-                    {settings.currency} {settings.budgetLimit}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Notifications:</span>
-                  <span
-                    className={`font-medium ${
-                      settings.notifications ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    {settings.notifications ? "Enabled" : "Disabled"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Dark Mode:</span>
-                  <span
-                    className={`font-medium ${
-                      settings.darkMode ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    {settings.darkMode ? "Enabled" : "Disabled"}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+    {/* Settings Summary */}
+    <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6 max-w-md">
+      <h3 className="text-lg font-semibold mb-4">Current Settings</h3>
+      <div className="space-y-3 text-sm">
+        <div className="flex justify-between">
+          <span>Currency:</span>
+          <span className="font-medium">{settings.currency}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Budget Limit:</span>
+          <span className="font-medium">
+            {settings.currency} {settings.budgetLimit}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span>Notifications:</span>
+          <span
+            className={`font-medium ${
+              settings.notifications ? "text-green-500" : "text-red-500"
+            }`}
+          >
+            {settings.notifications ? "Enabled" : "Disabled"}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span>Dark Mode:</span>
+          <span
+            className={`font-medium ${
+              settings.darkMode ? "text-green-500" : "text-red-500"
+            }`}
+          >
+            {settings.darkMode ? "Enabled" : "Disabled"}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
       </div>
     </div>
   );

@@ -27,6 +27,13 @@ function App() {
     notifications: false,
     darkMode: false,
   });
+useEffect(() => {
+  if (settings.darkMode) {
+    document.documentElement.classList.add("dark");
+  } else {
+    document.documentElement.classList.remove("dark");
+  }
+}, [settings.darkMode]);
 
   const [budget, setBudget] = useState({
     total: 0,
@@ -35,13 +42,15 @@ function App() {
 
   // ✅ Fetch balance from actual backend
   const fetchUserAndBalance = async () => {
+    console.log("➡️ Calling fetchUserAndBalance");
+
     if (!authUser?.token) return;
 
     try {
       const res = await axios.get("http://localhost:5002/user/profile", {
         headers: {
           Authorization: `Bearer ${authUser.token}`,
-        },
+        },withCredentials: true,
       });
 
       const { user } = res.data;
@@ -51,15 +60,44 @@ function App() {
         setBalance(numericBalance);
       }
     } catch (error) {
-      console.error("❌ Failed to fetch user profile:", error);
-    }
+  console.error("❌ Failed to fetch user profile:", error.response?.data || error.message);
+}
+
   };
+console.log("🔍 AuthUser at top of App:", authUser);
 
   useEffect(() => {
+    console.log("🔥 useEffect triggered");
     if (authUser) {
       fetchUserAndBalance();
+      fetchTransactions();
+       fetchCategories();
     }
   }, [authUser]);
+  console.log("✅ Balance in App:", balance);
+
+const fetchTransactions = async () => {
+  if (!authUser?.token) return;
+
+  try {
+    const res = await fetch("http://localhost:5002/api/transactions", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${authUser.token}`,
+      },
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      setTransactions(data); // ✅ update state
+    } else {
+      console.error("❌ Failed to fetch transactions:", data.message);
+    }
+  } catch (err) {
+    console.error("❌ Error fetching transactions:", err);
+  }
+};
 
   const addTransaction = async (transaction) => {
     try {
@@ -75,9 +113,13 @@ function App() {
       const data = await res.json();
 
       if (res.ok) {
-        setTransactions((prev) => [...prev, data]);
-        await fetchUserAndBalance();
-      } else {
+  await fetchTransactions();        // ✅ Refresh transaction list
+await fetchUserAndBalance();     // ✅ Refresh balance
+
+  console.log("🔥 Updated balance (local):", balance);
+
+  // ✅ Optionally also re-fetch from server in background
+} else {
         console.error("❌ Failed to add transaction:", data.message);
       }
     } catch (err) {
@@ -85,46 +127,85 @@ function App() {
     }
   };
 
-  const deleteTransaction = async (id) => {
-    if (!authUser?.token) return;
+ // Send the transaction along with DELETE request
+const deleteTransaction = async (transaction) => {
+  if (!authUser?.token) return;
 
-    try {
-      const res = await fetch(`http://localhost:5002/api/transactions/${id}`, {
-        method: "DELETE",
+  try {
+    const res = await fetch(`http://localhost:5002/api/transactions/${transaction._id}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authUser.token}`,
+      },
+      body: JSON.stringify({ transaction }), // ✅ send full transaction
+    });
+
+    if (res.ok) {
+      const adjustment = transaction.type === "income" ? -transaction.amount : +transaction.amount;
+
+      await fetch("http://localhost:5002/user/update-balance", {
+        method: "POST",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${authUser.token}`,
         },
+        body: JSON.stringify({ delta: adjustment }),
       });
 
-      if (res.ok) {
-        setTransactions((prev) => prev.filter((tx) => tx.id !== id));
-        await fetchUserAndBalance();
-      } else {
-        console.error("❌ Failed to delete transaction");
-      }
-    } catch (err) {
-      console.error("❌ Error deleting transaction:", err);
+      await fetchTransactions();
+      await fetchUserAndBalance();
+    } else {
+      console.error("❌ Failed to delete transaction");
     }
-  };
+  } catch (err) {
+    console.error("❌ Error deleting transaction:", err);
+  }
+};
+
 
   const updateBalanceAndCategories = (transaction) => {
-    if (transaction.type === "income") {
-      setBalance((prev) => prev + transaction.sum);
-    } else if (transaction.type === "expense") {
-      const amount = Math.abs(transaction.sum);
-      setBalance((prev) => prev - amount);
-      setCategories((prev) =>
-        prev.map((cat) =>
-          cat.name === transaction.category
-            ? { ...cat, amount: cat.amount + amount }
-            : cat
-        )
-      );
-    }
-  };
+  const amount = Number(transaction.sum); // ⬅️ ensure it's a number
 
+  if (transaction.type === "income") {
+    setBalance((prev) => prev + amount);
+  } else if (transaction.type === "expense") {
+    setBalance((prev) => prev - amount);
+    setCategories((prev) =>
+      prev.map((cat) =>
+        cat.name === transaction.category
+          ? { ...cat, amount: cat.amount + amount }
+          : cat
+      )
+    );
+  }
+};
   console.log("✅ Balance in App:", balance);
   console.log("✅ AuthUser:", authUser);
+
+  const fetchCategories = async () => {
+  if (!authUser?.token) return;
+
+  try {
+    const res = await fetch("http://localhost:5002/api/categories", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${authUser.token}`,
+      },
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      setCategories(data.map((cat) => ({ ...cat, amount: 0 }))); // if `amount` not in backend
+    } else {
+      console.error("❌ Failed to fetch categories:", data.message);
+    }
+  } catch (err) {
+    console.error("❌ Error fetching categories:", err);
+  }
+};
+
 
   return (
     <Routes>
@@ -142,6 +223,7 @@ function App() {
           <Route
             path="/"
             element={
+              
               <FinancialDashboard
                 transactions={transactions}
                 addTransaction={addTransaction}

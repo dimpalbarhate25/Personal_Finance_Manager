@@ -47,9 +47,11 @@ router.get("/", protect, async (req, res) => {
 
 router.delete("/:id", protect, async (req, res) => {
   try {
+    const { transaction } = req.body;
+
     const deleted = await Transaction.findOneAndDelete({
       _id: req.params.id,
-      user: req.user._id
+      user: req.user._id,
     });
 
     if (!deleted) {
@@ -61,6 +63,24 @@ router.delete("/:id", protect, async (req, res) => {
     res.status(500).json({ message: "Delete failed", error });
   }
 });
+// DELETE all transactions by category name
+router.delete("/category/:name", protect, async (req, res) => {
+  const categoryName = req.params.name;
+  const userId = req.user.id;
+
+  try {
+    const deleted = await Transaction.deleteMany({
+      category: categoryName,
+      user: userId,
+    });
+
+    res.json({ success: true, deletedCount: deleted.deletedCount });
+  } catch (err) {
+    console.error("Failed to delete transactions by category:", err);
+    res.status(500).json({ error: "Failed to delete transactions" });
+  }
+});
+
 
 
 

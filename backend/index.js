@@ -9,6 +9,7 @@ import transactionsRoutes from "./routes/transaction.route.js";
 import accountsRoutes from "./routes/accounts.route.js";
 import settingsRoutes from "./routes/settings.route.js";
 import categoriesRoutes from "./routes/categories.route.js";
+import cashRoutes from "./routes/cash.route.js";
 
 dotenv.config();
 
@@ -38,6 +39,7 @@ app.use("/api/transactions", transactionsRoutes);
 app.use("/api/accounts", accountsRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/categories", categoriesRoutes);
+app.use("/api/cash", cashRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);

@@ -3,6 +3,22 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
+// ✅ Import the icons
+import { ShoppingCart, Utensils, Home, Leaf, Plane, Car } from "lucide-react";
+
+const iconOptions = {
+  ShoppingCart,
+  Utensils,
+  Home,
+  Leaf,
+  Plane,
+  Car,
+  // Add more if needed
+};
+
+// ✅ Define iconOptions
+
+
 export default function CategoriesList({ refreshKey }) {
   const [categories, setCategories] = useState([]);
 
@@ -28,7 +44,7 @@ export default function CategoriesList({ refreshKey }) {
   return (
     <div className="grid grid-cols-2 gap-4 mt-4">
       {categories.map((category) => {
-        const Icon = iconOptions[category.icon]; // ✅ use correct variable
+        const Icon = iconOptions[category.icon]; // 🎯 Resolved here
         return (
           <div
             key={category._id}
@@ -37,7 +53,7 @@ export default function CategoriesList({ refreshKey }) {
             <div
               className={`w-8 h-8 rounded-full ${category.color} flex items-center justify-center`}
             >
-              {Icon && <Icon size={18} className="text-white" />}
+              {Icon ? <Icon size={18} className="text-white" /> : "❓"}
             </div>
             <span>{category.name}</span>
           </div>
